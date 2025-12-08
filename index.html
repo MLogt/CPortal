@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>CEAD HDPro ordering portal</title>
+  <title>HDPro Ordering Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -60,9 +60,21 @@
       color: #6b7280;
     }
 
+    .meta-error {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #b91c1c;
+    }
+
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
     table {
       border-collapse: collapse;
       width: 100%;
+      min-width: 720px;
       margin-top: 8px;
       font-size: 14px;
     }
@@ -71,12 +83,14 @@
       border: 1px solid #e5e7eb;
       padding: 8px;
       vertical-align: top;
+      background-clip: padding-box;
     }
 
     th {
       background: #f9fafb;
       text-align: left;
       font-weight: 600;
+      white-space: nowrap;
     }
 
     tr:nth-child(even) td {
@@ -108,6 +122,11 @@
     .status-shipped {
       background: #dbeafe;
       color: #1d4ed8;
+    }
+
+    .status-ready\ for\ pickup {
+      background: #e0f2fe;
+      color: #0369a1;
     }
 
     .status-cancelled {
@@ -147,6 +166,7 @@
       border: 1px solid #d1d5db;
       font-size: 14px;
       font-family: inherit;
+      background-color: #fff;
     }
 
     textarea {
@@ -228,11 +248,16 @@
     .price-table td {
       font-size: 13px;
     }
+
+    .input-error {
+      border-color: #b91c1c !important;
+      background-color: #fef2f2;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>CEAD HDPro Ordering Portal</h1>
+    <h1>HDPro Ordering Portal</h1>
     <p class="meta">
       Dedicated order portal for HDPro between DBF and CEAD. Placing an order here
       reserves material and creates a binding purchase commitment.
@@ -247,23 +272,25 @@
 
         <h2>Orders</h2>
         <div id="orders-loading" class="loading">Loading orders…</div>
-        <table id="orders-table" style="display:none;">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Ordered by</th>
-              <th>Customer</th>
-              <th class="numeric">Quantity (kg)</th>
-              <th class="numeric">Bags</th>
-              <th class="numeric">Pallets</th>
-              <th>Status</th>
-              <th>Planned shipping</th>
-              <th>Shipped date</th>
-              <th>Comment</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div class="table-wrapper">
+          <table id="orders-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Ordered by</th>
+                <th>Customer</th>
+                <th class="numeric">Quantity (kg)</th>
+                <th class="numeric">Bags</th>
+                <th class="numeric">Pallets</th>
+                <th>Status</th>
+                <th>Planned shipping</th>
+                <th>Shipped date</th>
+                <th>Comment</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
       <div>
@@ -309,6 +336,7 @@
               step="20"
               required
             />
+            <div id="quantity-error" class="meta-error" style="display:none;"></div>
           </div>
 
           <div class="field">
@@ -317,11 +345,12 @@
               id="planned_shipping_date"
               name="planned_shipping_date"
               type="date"
+              required
             />
-            <div class="meta-hint">
-              Use this to indicate when the material is needed. This is a planning date,
-              not a fixed shipping commitment.
+            <div id="planned-hint" class="meta-hint">
+              Use this to indicate when the material is needed. Earliest possible date is calculated…
             </div>
+            <div id="planned-error" class="meta-error" style="display:none;"></div>
           </div>
 
           <div class="meta" id="quantity-summary">
@@ -404,6 +433,15 @@
           physical shipment and logistics.
         </p>
         <p>
+          <strong>Status definitions:</strong>
+        </p>
+        <ul>
+          <li><strong>Reserved</strong> – order is received and material is reserved.</li>
+          <li><strong>Paid</strong> – payment is received, order is ready to be scheduled.</li>
+          <li><strong>Ready for pickup</strong> – order is prepared and can be collected by CEAD / carrier.</li>
+          <li><strong>Shipped</strong> – order has left DBF / CEAD and is on its way.</li>
+        </ul>
+        <p>
           If you made a mistake or need to change an order, please email Maarten.
         </p>
       </div>
@@ -447,6 +485,31 @@
       const d = new Date(value);
       if (isNaN(d)) return value;
       return d.toLocaleDateString("en-GB");
+    }
+
+    function addBusinessDays(date, days) {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      let added = 0;
+      while (added < days) {
+        d.setDate(d.getDate() + 1);
+        const day = d.getDay();
+        if (day !== 0 && day !== 6) {
+          added++;
+        }
+      }
+      return d;
+    }
+
+    function isWeekend(date) {
+      const day = date.getDay();
+      return day === 0 || day === 6;
+    }
+
+    function toInputDateString(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
     }
 
     async function loadDashboard() {
@@ -510,7 +573,7 @@
 
           const status = (order.status || "").toLowerCase();
           const statusClass = status
-            ? "status-badge status-" + status
+            ? "status-badge status-" + status.replace(/\s+/g, " ")
             : "status-badge";
 
           const bags = order.bags ?? computePackaging(order.quantity_kg).bags;
@@ -566,8 +629,12 @@
       const priceSummaryEl = document.getElementById("price-summary");
       const pricePreviewEl = document.getElementById("price-preview");
       const submitBtn = document.getElementById("submit-btn");
+      const qtyErrorEl = document.getElementById("quantity-error");
 
       let validQuantity = false;
+      qtyInput.classList.remove("input-error");
+      qtyErrorEl.style.display = "none";
+      qtyErrorEl.textContent = "";
 
       if (!qty || qty <= 0) {
         summaryEl.textContent =
@@ -577,6 +644,9 @@
       } else if (qty % BAG_WEIGHT_KG !== 0) {
         summaryEl.textContent =
           "Quantity must be a multiple of 20 kg. For example: 400, 720, 1200…";
+        qtyInput.classList.add("input-error");
+        qtyErrorEl.textContent = "Quantity is not a multiple of 20 kg.";
+        qtyErrorEl.style.display = "block";
         priceSummaryEl.textContent = "";
         pricePreviewEl.textContent = "";
       } else {
@@ -598,6 +668,65 @@
       }
 
       submitBtn.disabled = !validQuantity;
+    }
+
+    function initPlannedShipping() {
+      const plannedInput = document.getElementById("planned_shipping_date");
+      const hintEl = document.getElementById("planned-hint");
+      const plannedErrorEl = document.getElementById("planned-error");
+
+      const today = new Date();
+      const earliest = addBusinessDays(today, 5);
+      const earliestStr = toInputDateString(earliest);
+
+      plannedInput.min = earliestStr;
+      hintEl.textContent =
+        `Use this to indicate when the material is needed. Earliest possible date is ${earliest.toLocaleDateString("en-GB")} (weekdays only).`;
+
+      function validatePlanned() {
+        plannedErrorEl.style.display = "none";
+        plannedErrorEl.textContent = "";
+        plannedInput.classList.remove("input-error");
+
+        if (!plannedInput.value) return;
+
+        const chosen = new Date(plannedInput.value);
+        if (isNaN(chosen)) {
+          plannedInput.classList.add("input-error");
+          plannedErrorEl.textContent = "Invalid date.";
+          plannedErrorEl.style.display = "block";
+          return;
+        }
+
+        const chosenDay = new Date(
+          chosen.getFullYear(),
+          chosen.getMonth(),
+          chosen.getDate()
+        );
+        const minDay = new Date(
+          earliest.getFullYear(),
+          earliest.getMonth(),
+          earliest.getDate()
+        );
+
+        if (chosenDay.getTime() < minDay.getTime()) {
+          plannedInput.classList.add("input-error");
+          plannedErrorEl.textContent =
+            "Planned shipping date must be at least 5 working days from today.";
+          plannedErrorEl.style.display = "block";
+          return;
+        }
+
+        if (isWeekend(chosenDay)) {
+          plannedInput.classList.add("input-error");
+          plannedErrorEl.textContent =
+            "Planned shipping date cannot be on a weekend.";
+          plannedErrorEl.style.display = "block";
+        }
+      }
+
+      plannedInput.addEventListener("change", validatePlanned);
+      plannedInput.addEventListener("input", validatePlanned);
     }
 
     function updateOrderedByUI() {
@@ -678,6 +807,15 @@
             "Quantity must be a valid multiple of 20 kg.";
           messageEl.classList.add("error");
           submitBtn.disabled = false;
+          updateQuantityInfo();
+          return;
+        }
+
+        if (!plannedShippingDate) {
+          messageEl.textContent =
+            "Planned shipping date is required.";
+          messageEl.classList.add("error");
+          submitBtn.disabled = false;
           return;
         }
 
@@ -716,6 +854,7 @@
           form.reset();
           updateOrderedByUI();
           updateQuantityInfo();
+          initPlannedShipping();
 
           await loadDashboard();
         } catch (err) {
@@ -725,6 +864,7 @@
           messageEl.classList.add("error");
         } finally {
           updateQuantityInfo();
+          submitBtn.disabled = false;
         }
       });
 
@@ -732,6 +872,7 @@
     loadDashboard();
     updateOrderedByUI();
     updateQuantityInfo();
+    initPlannedShipping();
   </script>
 </body>
 </html>

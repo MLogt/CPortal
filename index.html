@@ -369,18 +369,22 @@
         }
 
         try {
-          const res = await fetch(API_BASE, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-              customer_id: CUSTOMER_ID,
-              ordered_by: orderedBy,
-              quantity_kg: quantity,
-              comment: comment,
-            }),
-          });
-
-          const data = await res.json();
+              onst payloadObj = {
+                customer_id: CUSTOMER_ID,
+                ordered_by: orderedBy,
+                quantity_kg: quantity,
+                comment: comment,
+              };
+              
+              // GEEN headers zetten → browser maakt er een simple request van
+              const res = await fetch(API_BASE, {
+                method: "POST",
+                body: new URLSearchParams({
+                  payload: JSON.stringify(payloadObj),
+                }),
+              });
+              
+              const data = await res.json();
 
           if (!res.ok || !data.success) {
             throw new Error(data.error || "Order kon niet worden aangemaakt.");

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>CEAD HDPro order Portal</title>
+  <title>HDPro Customer Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -26,16 +26,38 @@
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
     }
 
+    .inventory-card {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      margin-bottom: 8px;
+    }
+
     .inventory {
       font-weight: 600;
       font-size: 18px;
-      margin-bottom: 8px;
+      margin-bottom: 2px;
     }
 
     .meta {
       font-size: 13px;
       color: #666;
       margin-bottom: 16px;
+    }
+
+    .meta.small {
+      margin-bottom: 0;
+      font-size: 12px;
+      color: #4b5563;
+    }
+
+    .meta-hint {
+      margin-top: 4px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #6b7280;
     }
 
     table {
@@ -59,6 +81,10 @@
 
     tr:nth-child(even) td {
       background: #fcfcfd;
+    }
+
+    th.numeric, td.numeric {
+      text-align: center;
     }
 
     .status-badge {
@@ -87,6 +113,11 @@
     .status-cancelled {
       background: #fee2e2;
       color: #b91c1c;
+    }
+
+    td.empty {
+      color: #9ca3af;
+      font-style: italic;
     }
 
     form {
@@ -197,20 +228,6 @@
     .price-table td {
       font-size: 13px;
     }
-
-    .highlight {
-      font-weight: 600;
-    }
-
-    .inline {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .inline > * {
-      flex: 1;
-    }
   </style>
 </head>
 <body>
@@ -223,8 +240,10 @@
 
     <div class="two-columns">
       <div>
-        <div id="inventory" class="inventory">Loading inventory…</div>
-        <div id="inventory-meta" class="meta"></div>
+        <div class="inventory-card">
+          <div id="inventory" class="inventory">Loading inventory…</div>
+          <div id="inventory-meta" class="meta small"></div>
+        </div>
 
         <h2>Orders</h2>
         <div id="orders-loading" class="loading">Loading orders…</div>
@@ -234,9 +253,9 @@
               <th>Date</th>
               <th>Ordered by</th>
               <th>Customer</th>
-              <th>Quantity (kg)</th>
-              <th>Bags</th>
-              <th>Pallets</th>
+              <th class="numeric">Quantity (kg)</th>
+              <th class="numeric">Bags</th>
+              <th class="numeric">Pallets</th>
               <th>Status</th>
               <th>Planned shipping</th>
               <th>Shipped date</th>
@@ -253,7 +272,7 @@
           <div class="field">
             <label for="ordered_by_select">Ordered by</label>
             <select id="ordered_by_select" name="ordered_by_select" required>
-              <option value="">Select a name…</option>
+              <option value="">Select a name… (required)</option>
               <option value="Andrea">Andrea</option>
               <option value="Hugo">Hugo</option>
               <option value="Bob">Bob</option>
@@ -299,6 +318,10 @@
               name="planned_shipping_date"
               type="date"
             />
+            <div class="meta-hint">
+              Use this to indicate when the material is needed. This is a planning date,
+              not a fixed shipping commitment.
+            </div>
           </div>
 
           <div class="meta" id="quantity-summary">
@@ -494,19 +517,26 @@
           const pallets =
             order.pallets ?? computePackaging(order.quantity_kg).pallets;
 
-          const planned = formatDate(order.planned_shipping_date);
-          const shipped = formatDate(order.shipped_date);
+          const plannedRaw = order.planned_shipping_date;
+          const shippedRaw = order.shipped_date;
+          const planned = formatDate(plannedRaw);
+          const shipped = formatDate(shippedRaw);
+
+          const plannedDisplay = planned || "—";
+          const shippedDisplay = shipped || "—";
+          const plannedClass = planned ? "" : "empty";
+          const shippedClass = shipped ? "" : "empty";
 
           tr.innerHTML = `
             <td>${dateText}</td>
             <td>${order.ordered_by || ""}</td>
             <td>${order.customer || ""}</td>
-            <td>${order.quantity_kg || ""}</td>
-            <td>${bags}</td>
-            <td>${pallets}</td>
+            <td class="numeric">${order.quantity_kg || ""}</td>
+            <td class="numeric">${bags}</td>
+            <td class="numeric">${pallets}</td>
             <td><span class="${statusClass}">${status || ""}</span></td>
-            <td>${planned}</td>
-            <td>${shipped}</td>
+            <td class="${plannedClass}">${plannedDisplay}</td>
+            <td class="${shippedClass}">${shippedDisplay}</td>
             <td>${order.comment ? escapeHtml(order.comment) : ""}</td>
           `;
           tbody.appendChild(tr);
@@ -567,7 +597,6 @@
         pricePreviewEl.textContent = text;
       }
 
-      // knop alleen aan als quantity geldig is
       submitBtn.disabled = !validQuantity;
     }
 
@@ -612,7 +641,7 @@
         const customerName = form.customer_name.value.trim();
         const quantity = Number(form.quantity_kg.value);
         const comment = form.comment.value.trim();
-        const plannedShippingDate = form.planned_shipping_date.value; // YYYY-MM-DD
+        const plannedShippingDate = form.planned_shipping_date.value;
         const commitmentChecked = form.commitment.checked;
 
         let orderedBy = orderedBySelect;
@@ -695,7 +724,6 @@
             "Something went wrong while submitting the order: " + err.message;
           messageEl.classList.add("error");
         } finally {
-          // quantity-validatie opnieuw bepalen
           updateQuantityInfo();
         }
       });

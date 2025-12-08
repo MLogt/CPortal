@@ -106,6 +106,8 @@
 
     input[type="text"],
     input[type="number"],
+    input[type="date"],
+    select,
     textarea {
       width: 100%;
       box-sizing: border-box;
@@ -199,6 +201,16 @@
     .highlight {
       font-weight: 600;
     }
+
+    .inline {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .inline > * {
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -226,6 +238,8 @@
               <th>Bags</th>
               <th>Pallets</th>
               <th>Status</th>
+              <th>Planned shipping</th>
+              <th>Shipped date</th>
               <th>Comment</th>
             </tr>
           </thead>
@@ -237,8 +251,33 @@
         <h2>New order</h2>
         <form id="order-form">
           <div class="field">
-            <label for="ordered_by">Ordered by</label>
-            <input id="ordered_by" name="ordered_by" type="text" required />
+            <label for="ordered_by_select">Ordered by</label>
+            <select id="ordered_by_select" name="ordered_by_select" required>
+              <option value="">Select a name…</option>
+              <option value="Andrea">Andrea</option>
+              <option value="Hugo">Hugo</option>
+              <option value="Bob">Bob</option>
+              <option value="Fabien">Fabien</option>
+              <option value="Maarten 4">Maarten 4</option>
+              <option value="Lucas">Lucas</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="field" id="ordered_by_other_field" style="display:none;">
+            <label for="ordered_by_other">Other name</label>
+            <input id="ordered_by_other" name="ordered_by_other" type="text" />
+          </div>
+
+          <div class="field">
+            <label for="customer_name">Customer name</label>
+            <input
+              id="customer_name"
+              name="customer_name"
+              type="text"
+              placeholder="e.g. Klant BV, CEAD…"
+              required
+            />
           </div>
 
           <div class="field">
@@ -250,6 +289,15 @@
               min="20"
               step="20"
               required
+            />
+          </div>
+
+          <div class="field">
+            <label for="planned_shipping_date">Planned shipping date</label>
+            <input
+              id="planned_shipping_date"
+              name="planned_shipping_date"
+              type="date"
             />
           </div>
 
@@ -271,7 +319,7 @@
             </label>
           </div>
 
-          <button type="submit">Place order</button>
+          <button type="submit" id="submit-btn" disabled>Place order</button>
           <div id="form-message" class="message"></div>
         </form>
       </div>
@@ -371,6 +419,13 @@
       return "€ " + value.toFixed(2);
     }
 
+    function formatDate(value) {
+      if (!value) return "";
+      const d = new Date(value);
+      if (isNaN(d)) return value;
+      return d.toLocaleDateString("en-GB");
+    }
+
     async function loadDashboard() {
       const inventoryEl = document.getElementById("inventory");
       const inventoryMetaEl = document.getElementById("inventory-meta");
@@ -439,6 +494,9 @@
           const pallets =
             order.pallets ?? computePackaging(order.quantity_kg).pallets;
 
+          const planned = formatDate(order.planned_shipping_date);
+          const shipped = formatDate(order.shipped_date);
+
           tr.innerHTML = `
             <td>${dateText}</td>
             <td>${order.ordered_by || ""}</td>
@@ -447,6 +505,8 @@
             <td>${bags}</td>
             <td>${pallets}</td>
             <td><span class="${statusClass}">${status || ""}</span></td>
+            <td>${planned}</td>
+            <td>${shipped}</td>
             <td>${order.comment ? escapeHtml(order.comment) : ""}</td>
           `;
           tbody.appendChild(tr);
@@ -475,42 +535,64 @@
       const summaryEl = document.getElementById("quantity-summary");
       const priceSummaryEl = document.getElementById("price-summary");
       const pricePreviewEl = document.getElementById("price-preview");
+      const submitBtn = document.getElementById("submit-btn");
+
+      let validQuantity = false;
 
       if (!qty || qty <= 0) {
         summaryEl.textContent =
           "Enter a multiple of 20 kg. We deliver in 20 kg bags (24 bags per euro pallet).";
         priceSummaryEl.textContent = "";
         pricePreviewEl.textContent = "";
-        return;
-      }
-
-      if (qty % BAG_WEIGHT_KG !== 0) {
+      } else if (qty % BAG_WEIGHT_KG !== 0) {
         summaryEl.textContent =
           "Quantity must be a multiple of 20 kg. For example: 400, 720, 1200…";
         priceSummaryEl.textContent = "";
         pricePreviewEl.textContent = "";
-        return;
+      } else {
+        validQuantity = true;
+        const pkg = computePackaging(qty);
+        summaryEl.textContent = `${qty} kg = ${pkg.bags} bags, fits on ${pkg.pallets} euro pallet${pkg.pallets === 1 ? "" : "s"}.`;
+
+        const custUnit = getCustomerUnitPrice(qty);
+        const ceadUnit = getCeadUnitPrice(qty);
+        const custTotal = custUnit * qty;
+        const ceadTotal = ceadUnit * qty;
+
+        const text =
+          `For ${qty} kg: minimal customer price is ${formatEuro(custUnit)} / kg (${formatEuro(custTotal)} total), ` +
+          `CEAD price is ${formatEuro(ceadUnit)} / kg (${formatEuro(ceadTotal)} total).`;
+
+        priceSummaryEl.textContent = text;
+        pricePreviewEl.textContent = text;
       }
 
-      const pkg = computePackaging(qty);
-      summaryEl.textContent = `${qty} kg = ${pkg.bags} bags, fits on ${pkg.pallets} euro pallet${pkg.pallets === 1 ? "" : "s"}.`;
+      // knop alleen aan als quantity geldig is
+      submitBtn.disabled = !validQuantity;
+    }
 
-      const custUnit = getCustomerUnitPrice(qty);
-      const ceadUnit = getCeadUnitPrice(qty);
-      const custTotal = custUnit * qty;
-      const ceadTotal = ceadUnit * qty;
+    function updateOrderedByUI() {
+      const select = document.getElementById("ordered_by_select");
+      const otherField = document.getElementById("ordered_by_other_field");
+      const otherInput = document.getElementById("ordered_by_other");
 
-      const text =
-        `For ${qty} kg: minimal customer price is ${formatEuro(custUnit)} / kg (${formatEuro(custTotal)} total), ` +
-        `CEAD price is ${formatEuro(ceadUnit)} / kg (${formatEuro(ceadTotal)} total).`;
-
-      priceSummaryEl.textContent = text;
-      pricePreviewEl.textContent = text;
+      if (select.value === "Other") {
+        otherField.style.display = "block";
+        otherInput.required = true;
+      } else {
+        otherField.style.display = "none";
+        otherInput.required = false;
+        otherInput.value = "";
+      }
     }
 
     document
       .getElementById("quantity_kg")
       .addEventListener("input", updateQuantityInfo);
+
+    document
+      .getElementById("ordered_by_select")
+      .addEventListener("change", updateOrderedByUI);
 
     document
       .getElementById("order-form")
@@ -519,16 +601,40 @@
 
         const form = e.target;
         const messageEl = document.getElementById("form-message");
-        const submitBtn = form.querySelector('button[type="submit"]');
+        const submitBtn = document.getElementById("submit-btn");
 
         messageEl.textContent = "";
         messageEl.className = "message";
         submitBtn.disabled = true;
 
-        const orderedBy = form.ordered_by.value.trim();
+        const orderedBySelect = form.ordered_by_select.value;
+        const orderedByOther = form.ordered_by_other.value.trim();
+        const customerName = form.customer_name.value.trim();
         const quantity = Number(form.quantity_kg.value);
         const comment = form.comment.value.trim();
+        const plannedShippingDate = form.planned_shipping_date.value; // YYYY-MM-DD
         const commitmentChecked = form.commitment.checked;
+
+        let orderedBy = orderedBySelect;
+        if (orderedBySelect === "Other") {
+          orderedBy = orderedByOther;
+        }
+
+        if (!orderedBy) {
+          messageEl.textContent =
+            "Please select or enter a name in 'Ordered by'.";
+          messageEl.classList.add("error");
+          submitBtn.disabled = false;
+          return;
+        }
+
+        if (!customerName) {
+          messageEl.textContent =
+            "Please enter a customer name.";
+          messageEl.classList.add("error");
+          submitBtn.disabled = false;
+          return;
+        }
 
         if (!commitmentChecked) {
           messageEl.textContent =
@@ -538,17 +644,9 @@
           return;
         }
 
-        if (!orderedBy || !quantity || quantity <= 0) {
+        if (!quantity || quantity <= 0 || quantity % BAG_WEIGHT_KG !== 0) {
           messageEl.textContent =
-            "Please enter a valid name and quantity.";
-          messageEl.classList.add("error");
-          submitBtn.disabled = false;
-          return;
-        }
-
-        if (quantity % BAG_WEIGHT_KG !== 0) {
-          messageEl.textContent =
-            "Quantity must be a multiple of 20 kg.";
+            "Quantity must be a valid multiple of 20 kg.";
           messageEl.classList.add("error");
           submitBtn.disabled = false;
           return;
@@ -558,8 +656,10 @@
           const payloadObj = {
             customer_id: CUSTOMER_ID,
             ordered_by: orderedBy,
+            customer_name: customerName,
             quantity_kg: quantity,
             comment: comment,
+            planned_shipping_date: plannedShippingDate,
           };
 
           const res = await fetch(API_BASE, {
@@ -568,7 +668,7 @@
               payload: JSON.stringify(payloadObj),
             }),
           });
-          
+
           const text = await res.text();
           let data;
           try {
@@ -576,7 +676,6 @@
           } catch (parseErr) {
             throw new Error("Unexpected response from server: " + text.slice(0, 120));
           }
-
 
           if (!res.ok || !data.success) {
             throw new Error(data.error || "Order could not be created.");
@@ -586,6 +685,7 @@
             "Order submitted. This is a binding purchase commitment.";
           messageEl.classList.add("success");
           form.reset();
+          updateOrderedByUI();
           updateQuantityInfo();
 
           await loadDashboard();
@@ -595,12 +695,14 @@
             "Something went wrong while submitting the order: " + err.message;
           messageEl.classList.add("error");
         } finally {
-          submitBtn.disabled = false;
+          // quantity-validatie opnieuw bepalen
+          updateQuantityInfo();
         }
       });
 
     // initial load
     loadDashboard();
+    updateOrderedByUI();
     updateQuantityInfo();
   </script>
 </body>

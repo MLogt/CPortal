@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Klantportal</title>
+  <title>HDPro Customer Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -13,12 +13,12 @@
       color: #222;
     }
 
-    h1, h2 {
+    h1, h2, h3 {
       margin-top: 0;
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: 0 auto;
       background: #fff;
       padding: 24px;
@@ -29,13 +29,13 @@
     .inventory {
       font-weight: 600;
       font-size: 18px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .meta {
       font-size: 13px;
       color: #666;
-      margin-bottom: 24px;
+      margin-bottom: 16px;
     }
 
     table {
@@ -170,77 +170,206 @@
       font-size: 14px;
       color: #6b7280;
     }
+
+    .two-columns {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .card {
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      padding: 16px;
+      background: #f9fafb;
+      font-size: 14px;
+    }
+
+    .price-table {
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    .price-table th,
+    .price-table td {
+      font-size: 13px;
+    }
+
+    .highlight {
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Klantportal</h1>
+    <h1>HDPro Customer Portal</h1>
     <p class="meta">
-      Deze pagina toont jouw gereserveerde voorraad en eerdere orders. 
-      Het plaatsen van een order via dit formulier geldt als afnameverplichting.
+      Dedicated order portal for HDPro between DBF and CEAD. Placing an order here
+      reserves material and creates a binding purchase commitment.
     </p>
 
-    <div id="inventory" class="inventory">Voorraad laden…</div>
-    <div id="inventory-meta" class="meta"></div>
+    <div class="two-columns">
+      <div>
+        <div id="inventory" class="inventory">Loading inventory…</div>
+        <div id="inventory-meta" class="meta"></div>
 
-    <h2>Orders</h2>
-    <div id="orders-loading" class="loading">Orders laden…</div>
-    <table id="orders-table" style="display:none;">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Besteld door</th>
-          <th>Klant</th>
-          <th>Aantal (kg)</th>
-          <th>Status</th>
-          <th>Opmerking</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <h2>Nieuwe order</h2>
-    <form id="order-form">
-      <div class="field">
-        <label for="ordered_by">Besteld door</label>
-        <input id="ordered_by" name="ordered_by" type="text" required />
+        <h2>Orders</h2>
+        <div id="orders-loading" class="loading">Loading orders…</div>
+        <table id="orders-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Ordered by</th>
+              <th>Customer</th>
+              <th>Quantity (kg)</th>
+              <th>Bags</th>
+              <th>Pallets</th>
+              <th>Status</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
 
-      <div class="field">
-        <label for="quantity_kg">Aantal (kg)</label>
-        <input
-          id="quantity_kg"
-          name="quantity_kg"
-          type="number"
-          min="1"
-          step="1"
-          required
-        />
+      <div>
+        <h2>New order</h2>
+        <form id="order-form">
+          <div class="field">
+            <label for="ordered_by">Ordered by</label>
+            <input id="ordered_by" name="ordered_by" type="text" required />
+          </div>
+
+          <div class="field">
+            <label for="quantity_kg">Quantity (kg)</label>
+            <input
+              id="quantity_kg"
+              name="quantity_kg"
+              type="number"
+              min="20"
+              step="20"
+              required
+            />
+          </div>
+
+          <div class="meta" id="quantity-summary">
+            Enter a multiple of 20 kg. We deliver in 20 kg bags (24 bags per euro pallet).
+          </div>
+
+          <div class="meta" id="price-summary"></div>
+
+          <div class="field">
+            <label for="comment">Comment (optional)</label>
+            <textarea id="comment" name="comment"></textarea>
+          </div>
+
+          <div class="checkbox-row">
+            <input id="commitment" name="commitment" type="checkbox" required />
+            <label for="commitment">
+              I confirm this order and understand that it creates a binding purchase commitment.
+            </label>
+          </div>
+
+          <button type="submit">Place order</button>
+          <div id="form-message" class="message"></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="two-columns" style="margin-top:32px;">
+      <div class="card">
+        <h2>Pricing</h2>
+        <p class="meta">
+          All prices are EXW (Ex Works) and exclusive of VAT. Prices are per kg based on
+          the total ordered quantity.
+        </p>
+
+        <table class="price-table">
+          <thead>
+            <tr>
+              <th>Range (kg)</th>
+              <th>Minimal customer price<br/>(€ / kg)</th>
+              <th>CEAD price<br/>(€ / kg)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>0 – 400</td>
+              <td>9.90</td>
+              <td>8.28</td>
+            </tr>
+            <tr>
+              <td>401 – 1200</td>
+              <td>9.50</td>
+              <td>8.08</td>
+            </tr>
+            <tr>
+              <td>1201 – 5200</td>
+              <td>8.80</td>
+              <td>7.73</td>
+            </tr>
+            <tr>
+              <td>&gt; 5200</td>
+              <td>8.30</td>
+              <td>7.48</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p id="price-preview" class="meta"></p>
       </div>
 
-      <div class="field">
-        <label for="comment">Opmerking (optioneel)</label>
-        <textarea id="comment" name="comment"></textarea>
+      <div class="card">
+        <h2>Information</h2>
+        <p>
+          This is the dedicated CEAD order portal for HDPro between DBF and CEAD.
+          Once an order is committed in this system, material is reserved and a
+          purchase commitment is created.
+        </p>
+        <p>
+          Payment is required before shipping. Shipping is handled by CEAD, by
+          appointment. DBF will prepare the shipments for CEAD; CEAD arranges the
+          physical shipment and logistics.
+        </p>
+        <p>
+          If you made a mistake or need to change an order, please email Maarten.
+        </p>
       </div>
-
-      <div class="checkbox-row">
-        <input id="commitment" name="commitment" type="checkbox" required />
-        <label for="commitment">
-          Ik ga een afnameverplichting aan voor het hierboven ingevulde aantal.
-        </label>
-      </div>
-
-      <button type="submit">Order plaatsen</button>
-      <div id="form-message" class="message"></div>
-    </form>
+    </div>
   </div>
 
   <script>
-    // ▼▼▼ PAS DIT AAN NAAR JOUW APPS SCRIPT WEB APP URL ▼▼▼
-    const API_BASE = "https://script.google.com/macros/s/AKfycbzkOx-GwMl8k6uiBIjD7DCNSRJdB5n0M9cFQagsEp7NG1v0KhbOa2AUy5k6MRfmwoPP/exec"; // bv. https://script.google.com/macros/s/XYZ/exec
-    // ▲▲▲ PAS DIT AAN ▲▲▲
+    const API_BASE = "https://script.google.com/macros/s/AKfycbzkOx-GwMl8k6uiBIjD7DCNSRJdB5n0M9cFQagsEp7NG1v0KhbOa2AUy5k6MRfmwoPP/exec";
+    const CUSTOMER_ID = 1;
 
-    const CUSTOMER_ID = 1; // zelfde als in Apps Script configuratie
+    const BAG_WEIGHT_KG = 20;
+    const BAGS_PER_PALLET = 24;
+
+    function getCustomerUnitPrice(kg) {
+      if (kg <= 400) return 9.90;
+      if (kg <= 1200) return 9.50;
+      if (kg <= 5200) return 8.80;
+      return 8.30;
+    }
+
+    function getCeadUnitPrice(kg) {
+      if (kg <= 400) return 8.28;
+      if (kg <= 1200) return 8.08;
+      if (kg <= 5200) return 7.73;
+      return 7.48;
+    }
+
+    function computePackaging(kg) {
+      if (!kg || kg <= 0) return { bags: 0, pallets: 0 };
+      const bags = Math.round(kg / BAG_WEIGHT_KG);
+      const pallets = Math.ceil(bags / BAGS_PER_PALLET);
+      return { bags, pallets };
+    }
+
+    function formatEuro(value) {
+      return "€ " + value.toFixed(2);
+    }
 
     async function loadDashboard() {
       const inventoryEl = document.getElementById("inventory");
@@ -249,7 +378,7 @@
       const ordersTableEl = document.getElementById("orders-table");
       const tbody = ordersTableEl.querySelector("tbody");
 
-      inventoryEl.textContent = "Voorraad laden…";
+      inventoryEl.textContent = "Loading inventory…";
       inventoryMetaEl.textContent = "";
       ordersLoadingEl.style.display = "block";
       ordersTableEl.style.display = "none";
@@ -264,21 +393,21 @@
         const data = await res.json();
 
         if (!data.success) {
-          throw new Error(data.error || "Onbekende fout bij dashboard");
+          throw new Error(data.error || "Unknown dashboard error");
         }
 
-        // Voorraad
+        // Inventory
         if (!data.inventory) {
-          inventoryEl.textContent = "Geen voorraad gevonden.";
+          inventoryEl.textContent = "No inventory found.";
         } else {
           inventoryEl.textContent =
-            "Beschikbare voorraad: " + data.inventory.available_kg + " kg";
+            "Available inventory: " + data.inventory.available_kg + " kg";
 
           if (data.inventory.updated_at) {
             const dt = new Date(data.inventory.updated_at);
             if (!isNaN(dt)) {
               inventoryMetaEl.textContent =
-                "Laatst bijgewerkt: " + dt.toLocaleString("nl-NL");
+                "Last updated: " + dt.toLocaleString("en-GB");
             }
           }
         }
@@ -289,7 +418,7 @@
         const orders = data.orders || [];
         if (orders.length === 0) {
           ordersLoadingEl.style.display = "block";
-          ordersLoadingEl.textContent = "Er zijn nog geen orders geplaatst.";
+          ordersLoadingEl.textContent = "No orders placed yet.";
           return;
         }
 
@@ -299,18 +428,24 @@
           const d = new Date(order.timestamp);
           const dateText = isNaN(d)
             ? order.timestamp
-            : d.toLocaleDateString("nl-NL");
+            : d.toLocaleDateString("en-GB");
 
           const status = (order.status || "").toLowerCase();
           const statusClass = status
             ? "status-badge status-" + status
             : "status-badge";
 
+          const bags = order.bags ?? computePackaging(order.quantity_kg).bags;
+          const pallets =
+            order.pallets ?? computePackaging(order.quantity_kg).pallets;
+
           tr.innerHTML = `
             <td>${dateText}</td>
             <td>${order.ordered_by || ""}</td>
             <td>${order.customer || ""}</td>
             <td>${order.quantity_kg || ""}</td>
+            <td>${bags}</td>
+            <td>${pallets}</td>
             <td><span class="${statusClass}">${status || ""}</span></td>
             <td>${order.comment ? escapeHtml(order.comment) : ""}</td>
           `;
@@ -318,10 +453,10 @@
         });
       } catch (err) {
         inventoryEl.textContent =
-          "Er ging iets mis bij het ophalen van de gegevens.";
+          "Something went wrong while loading data.";
         console.error(err);
         ordersLoadingEl.textContent =
-          "Er ging iets mis bij het laden van de orders.";
+          "Something went wrong while loading orders.";
       }
     }
 
@@ -333,6 +468,49 @@
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
     }
+
+    function updateQuantityInfo() {
+      const qtyInput = document.getElementById("quantity_kg");
+      const qty = Number(qtyInput.value);
+      const summaryEl = document.getElementById("quantity-summary");
+      const priceSummaryEl = document.getElementById("price-summary");
+      const pricePreviewEl = document.getElementById("price-preview");
+
+      if (!qty || qty <= 0) {
+        summaryEl.textContent =
+          "Enter a multiple of 20 kg. We deliver in 20 kg bags (24 bags per euro pallet).";
+        priceSummaryEl.textContent = "";
+        pricePreviewEl.textContent = "";
+        return;
+      }
+
+      if (qty % BAG_WEIGHT_KG !== 0) {
+        summaryEl.textContent =
+          "Quantity must be a multiple of 20 kg. For example: 400, 720, 1200…";
+        priceSummaryEl.textContent = "";
+        pricePreviewEl.textContent = "";
+        return;
+      }
+
+      const pkg = computePackaging(qty);
+      summaryEl.textContent = `${qty} kg = ${pkg.bags} bags, fits on ${pkg.pallets} euro pallet${pkg.pallets === 1 ? "" : "s"}.`;
+
+      const custUnit = getCustomerUnitPrice(qty);
+      const ceadUnit = getCeadUnitPrice(qty);
+      const custTotal = custUnit * qty;
+      const ceadTotal = ceadUnit * qty;
+
+      const text =
+        `For ${qty} kg: minimal customer price is ${formatEuro(custUnit)} / kg (${formatEuro(custTotal)} total), ` +
+        `CEAD price is ${formatEuro(ceadUnit)} / kg (${formatEuro(ceadTotal)} total).`;
+
+      priceSummaryEl.textContent = text;
+      pricePreviewEl.textContent = text;
+    }
+
+    document
+      .getElementById("quantity_kg")
+      .addEventListener("input", updateQuantityInfo);
 
     document
       .getElementById("order-form")
@@ -354,7 +532,7 @@
 
         if (!commitmentChecked) {
           messageEl.textContent =
-            "Je moet akkoord gaan met de afnameverplichting.";
+            "You must agree to the purchase commitment.";
           messageEl.classList.add("error");
           submitBtn.disabled = false;
           return;
@@ -362,53 +540,61 @@
 
         if (!orderedBy || !quantity || quantity <= 0) {
           messageEl.textContent =
-            "Vul een geldige naam en hoeveelheid in.";
+            "Please enter a valid name and quantity.";
+          messageEl.classList.add("error");
+          submitBtn.disabled = false;
+          return;
+        }
+
+        if (quantity % BAG_WEIGHT_KG !== 0) {
+          messageEl.textContent =
+            "Quantity must be a multiple of 20 kg.";
           messageEl.classList.add("error");
           submitBtn.disabled = false;
           return;
         }
 
         try {
-              onst payloadObj = {
-                customer_id: CUSTOMER_ID,
-                ordered_by: orderedBy,
-                quantity_kg: quantity,
-                comment: comment,
-              };
-              
-              // GEEN headers zetten → browser maakt er een simple request van
-              const res = await fetch(API_BASE, {
-                method: "POST",
-                body: new URLSearchParams({
-                  payload: JSON.stringify(payloadObj),
-                }),
-              });
-              
-              const data = await res.json();
+          const payloadObj = {
+            customer_id: CUSTOMER_ID,
+            ordered_by: orderedBy,
+            quantity_kg: quantity,
+            comment: comment,
+          };
+
+          const res = await fetch(API_BASE, {
+            method: "POST",
+            body: new URLSearchParams({
+              payload: JSON.stringify(payloadObj),
+            }),
+          });
+
+          const data = await res.json();
 
           if (!res.ok || !data.success) {
-            throw new Error(data.error || "Order kon niet worden aangemaakt.");
+            throw new Error(data.error || "Order could not be created.");
           }
 
           messageEl.textContent =
-            "Order verstuurd. Dit is een afnameverplichting.";
+            "Order submitted. This is a binding purchase commitment.";
           messageEl.classList.add("success");
           form.reset();
+          updateQuantityInfo();
 
-          // dashboard opnieuw laden (voorraad + orders)
           await loadDashboard();
         } catch (err) {
           console.error(err);
           messageEl.textContent =
-            "Er ging iets mis bij het versturen van de order: " + err.message;
+            "Something went wrong while submitting the order: " + err.message;
           messageEl.classList.add("error");
         } finally {
           submitBtn.disabled = false;
         }
       });
 
-    // start
+    // initial load
     loadDashboard();
+    updateQuantityInfo();
   </script>
 </body>
 </html>

@@ -371,7 +371,7 @@
         try {
           const res = await fetch(API_BASE, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({
               customer_id: CUSTOMER_ID,
               ordered_by: orderedBy,

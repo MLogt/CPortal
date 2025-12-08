@@ -568,8 +568,15 @@
               payload: JSON.stringify(payloadObj),
             }),
           });
+          
+          const text = await res.text();
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch (parseErr) {
+            throw new Error("Unexpected response from server: " + text.slice(0, 120));
+          }
 
-          const data = await res.json();
 
           if (!res.ok || !data.success) {
             throw new Error(data.error || "Order could not be created.");

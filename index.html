@@ -5,273 +5,151 @@
   <title>HDPro Ordering Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --primary: #111827;
+      --bg-body: #f5f5f7;
+      --bg-card: #ffffff;
+      --border: #e5e7eb;
+      --text-main: #222;
+      --text-muted: #6b7280;
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
       padding: 16px;
-      background: #f5f5f7;
-      color: #222;
+      background: var(--bg-body);
+      color: var(--text-main);
     }
 
-    h1, h2, h3 {
-      margin-top: 0;
-    }
+    h1, h2, h3 { margin-top: 0; }
 
     .container {
       max-width: 1100px;
       margin: 0 auto;
-      background: #fff;
+      background: var(--bg-card);
       padding: 24px;
       border-radius: 12px;
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
     }
 
-    .inventory-card {
-      display: inline-block;
-      padding: 8px 12px;
-      border-radius: 10px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      margin-bottom: 8px;
-    }
-
-    .inventory {
-      font-weight: 600;
-      font-size: 18px;
-      margin-bottom: 2px;
-    }
-
-    .meta {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 16px;
-    }
-
-    .meta.small {
-      margin-bottom: 0;
-      font-size: 12px;
-      color: #4b5563;
-    }
-
-    .meta-hint {
-      margin-top: 4px;
-      margin-bottom: 12px;
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    .meta-error {
-      margin-top: 4px;
-      font-size: 12px;
-      color: #b91c1c;
-    }
-
-    .table-wrapper {
-      width: 100%;
-      overflow-x: auto;
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      min-width: 720px;
-      margin-top: 8px;
-      font-size: 14px;
-    }
-
-    th, td {
-      border: 1px solid #e5e7eb;
-      padding: 8px;
-      vertical-align: top;
-      background-clip: padding-box;
-    }
-
-    th {
-      background: #f9fafb;
-      text-align: left;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    tr:nth-child(even) td {
-      background: #fcfcfd;
-    }
-
-    th.numeric, td.numeric {
-      text-align: center;
-    }
-
+    /* --- Status Badges --- */
     .status-badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       padding: 2px 8px;
       border-radius: 999px;
       font-size: 12px;
+      font-weight: 500;
       text-transform: capitalize;
     }
+    .status-reserved { background: #fef3c7; color: #92400e; }
+    .status-paid { background: #dcfce7; color: #166534; }
+    .status-shipped { background: #dbeafe; color: #1d4ed8; }
+    .status-ready\ for\ pickup { background: #e0f2fe; color: #0369a1; }
+    .status-cancelled { background: #fee2e2; color: #b91c1c; }
+    .status-default { background: #f3f4f6; color: #374151; }
 
-    .status-reserved {
-      background: #fef3c7;
-      color: #92400e;
+    /* --- Inventory Card --- */
+    .inventory-card {
+      display: inline-block;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      margin-bottom: 16px;
     }
+    .inventory-val { font-weight: 700; font-size: 20px; color: #1e3a8a; }
+    
+    /* --- Typography & Utils --- */
+    .meta { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .meta.small { font-size: 12px; margin-bottom: 0; }
+    .meta-error { margin-top: 4px; font-size: 12px; color: #b91c1c; }
+    
+    /* --- Tables --- */
+    .table-wrapper { width: 100%; overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+    table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: #f9fafb; font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+    tr:last-child td { border-bottom: none; }
+    .numeric { text-align: right; font-variant-numeric: tabular-nums; }
+    td.empty { color: #9ca3af; font-style: italic; }
 
-    .status-paid {
-      background: #dcfce7;
-      color: #166534;
-    }
-
-    .status-shipped {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .status-ready\ for\ pickup {
-      background: #e0f2fe;
-      color: #0369a1;
-    }
-
-    .status-cancelled {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-
-    td.empty {
-      color: #9ca3af;
-      font-style: italic;
-    }
-
+    /* --- Form --- */
     form {
-      margin-top: 16px;
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid #e5e7eb;
-      background: #f9fafb;
+      margin-top: 16px; padding: 20px; border-radius: 8px;
+      border: 1px solid var(--border); background: #f9fafb;
     }
-
-    label {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 4px;
-      font-weight: 500;
+    label { display: block; font-size: 14px; margin-bottom: 4px; font-weight: 600; color: #374151; }
+    .field { margin-bottom: 16px; }
+    
+    input, select, textarea {
+      width: 100%; padding: 8px 10px; border-radius: 6px;
+      border: 1px solid #d1d5db; font-size: 14px; font-family: inherit;
+      background-color: #fff; transition: border-color 0.15s;
     }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="date"],
-    select,
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #d1d5db;
-      font-size: 14px;
-      font-family: inherit;
-      background-color: #fff;
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--primary); ring: 2px solid rgba(17, 24, 39, 0.1);
     }
-
-    textarea {
-      resize: vertical;
-      min-height: 60px;
-    }
-
-    .field {
-      margin-bottom: 12px;
-    }
-
-    .checkbox-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      font-size: 13px;
-      margin: 8px 0 16px;
-    }
-
-    .checkbox-row input[type="checkbox"] {
-      margin-top: 3px;
-    }
-
+    .input-error { border-color: #b91c1c !important; background-color: #fef2f2; }
+    
     button[type="submit"] {
-      background: #111827;
-      color: #fff;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
+      background: var(--primary); color: #fff; border: none;
+      padding: 10px 20px; border-radius: 999px; font-size: 14px;
+      font-weight: 600; cursor: pointer; transition: opacity 0.2s;
     }
-
-    button[type="submit"]:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-
-    .message {
-      margin-top: 8px;
-      font-size: 13px;
-    }
-
-    .message.error {
-      color: #b91c1c;
-    }
-
-    .message.success {
-      color: #166534;
-    }
-
-    .loading {
-      font-size: 14px;
-      color: #6b7280;
-    }
-
+    button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* --- Layout --- */
     .two-columns {
-      display: grid;
-      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-      gap: 24px;
-      margin-top: 24px;
+      display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 24px;
     }
-
+    @media (min-width: 768px) {
+      .two-columns { grid-template-columns: 3fr 2fr; }
+    }
+    
     .card {
-      border-radius: 8px;
-      border: 1px solid #e5e7eb;
-      padding: 16px;
-      background: #f9fafb;
-      font-size: 14px;
+      border-radius: 8px; border: 1px solid var(--border);
+      padding: 16px; background: #f9fafb; font-size: 14px;
     }
-
-    .price-table {
-      margin-top: 8px;
-      font-size: 13px;
+    
+    /* --- Loading Spinner --- */
+    .spinner {
+      border: 2px solid #f3f3f3; border-top: 2px solid #3498db;
+      border-radius: 50%; width: 16px; height: 16px;
+      animation: spin 1s linear infinite; display: inline-block;
+      vertical-align: middle; margin-right: 8px;
     }
-
-    .price-table th,
-    .price-table td {
-      font-size: 13px;
-    }
-
-    .input-error {
-      border-color: #b91c1c !important;
-      background-color: #fef2f2;
-    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .message { margin-top: 12px; font-size: 14px; padding: 8px; border-radius: 4px; display: none;}
+    .message.error { background: #fee2e2; color: #b91c1c; display: block; }
+    .message.success { background: #dcfce7; color: #166534; display: block; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>HDPro Ordering Portal</h1>
-    <p class="meta">
-      Dedicated order portal for HDPro between DBF and CEAD. Placing an order here
-      reserves material and creates a binding purchase commitment.
-    </p>
+    <header>
+      <h1>HDPro Ordering Portal</h1>
+      <p class="meta">
+        Dedicated order portal for HDPro between DBF and CEAD. Stock level indicates how much stock DBF has available for direct sales.
+      </p>
+    </header>
 
     <div class="two-columns">
+      <!-- LEFT COLUMN: Status & History -->
       <div>
         <div class="inventory-card">
-          <div id="inventory" class="inventory">Loading inventory…</div>
-          <div id="inventory-meta" class="meta small"></div>
+          <div id="inventory-display" class="inventory-val">Loading...</div>
+          <div id="inventory-meta" class="meta small">Checking stock levels...</div>
         </div>
 
-        <h2>Orders</h2>
-        <div id="orders-loading" class="loading">Loading orders…</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+            <h2>Orders</h2>
+            <button id="refresh-btn" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:13px; text-decoration:underline;">Refresh</button>
+        </div>
+        
+        <div id="orders-loading" class="meta"><div class="spinner"></div> Loading orders...</div>
         <div class="table-wrapper">
           <table id="orders-table" style="display:none;">
             <thead>
@@ -279,32 +157,33 @@
                 <th>Date</th>
                 <th>Ordered by</th>
                 <th>Customer</th>
-                <th class="numeric">Quantity (kg)</th>
+                <th class="numeric">Kg</th>
                 <th class="numeric">Bags</th>
                 <th class="numeric">Pallets</th>
                 <th>Status</th>
-                <th>Planned shipping</th>
-                <th>Shipped date</th>
+                <th>Planned</th>
+                <th>Shipped</th>
                 <th>Comment</th>
               </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="orders-tbody"></tbody>
           </table>
         </div>
       </div>
 
+      <!-- RIGHT COLUMN: Form -->
       <div>
         <h2>New order</h2>
         <form id="order-form">
           <div class="field">
             <label for="ordered_by_select">Ordered by</label>
             <select id="ordered_by_select" name="ordered_by_select" required>
-              <option value="">Select a name… (required)</option>
+              <option value="">Select a name... (required)</option>
               <option value="Andrea">Andrea</option>
               <option value="Hugo">Hugo</option>
               <option value="Bob">Bob</option>
               <option value="Fabien">Fabien</option>
-              <option value="Maarten 4">Maarten 4</option>
+              <option value="Maarten 4">Maarten S.</option>
               <option value="Lucas">Lucas</option>
               <option value="Other">Other</option>
             </select>
@@ -317,56 +196,35 @@
 
           <div class="field">
             <label for="customer_name">Customer name</label>
-            <input
-              id="customer_name"
-              name="customer_name"
-              type="text"
-              placeholder="e.g. Klant BV, CEAD…"
-              required
-            />
+            <input id="customer_name" name="customer_name" type="text" placeholder="e.g. Klant BV" required />
           </div>
 
           <div class="field">
             <label for="quantity_kg">Quantity (kg)</label>
-            <input
-              id="quantity_kg"
-              name="quantity_kg"
-              type="number"
-              min="20"
-              step="20"
-              required
-            />
+            <input id="quantity_kg" name="quantity_kg" type="number" min="20" step="20" required />
             <div id="quantity-error" class="meta-error" style="display:none;"></div>
           </div>
 
           <div class="field">
             <label for="planned_shipping_date">Planned shipping date</label>
-            <input
-              id="planned_shipping_date"
-              name="planned_shipping_date"
-              type="date"
-              required
-            />
-            <div id="planned-hint" class="meta-hint">
-              Use this to indicate when the material is needed. Earliest possible date is calculated…
-            </div>
+            <input id="planned_shipping_date" name="planned_shipping_date" type="date" required />
+            <div id="planned-hint" class="meta small" style="margin-top:4px;"></div>
             <div id="planned-error" class="meta-error" style="display:none;"></div>
           </div>
 
-          <div class="meta" id="quantity-summary">
-            Enter a multiple of 20 kg. We deliver in 20 kg bags (24 bags per euro pallet).
+          <div class="field" style="background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e3a8a;">
+             <div id="quantity-summary">Enter a multiple of 20kg.</div>
+             <div id="price-preview" style="margin-top:4px; font-weight:600;"></div>
           </div>
-
-          <div class="meta" id="price-summary"></div>
 
           <div class="field">
             <label for="comment">Comment (optional)</label>
             <textarea id="comment" name="comment"></textarea>
           </div>
 
-          <div class="checkbox-row">
-            <input id="commitment" name="commitment" type="checkbox" required />
-            <label for="commitment">
+          <div style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 16px; font-size: 13px;">
+            <input id="commitment" name="commitment" type="checkbox" required style="width: auto; margin-top: 3px;" />
+            <label for="commitment" style="font-weight: normal; display: inline;">
               I confirm this order and understand that it creates a binding purchase commitment.
             </label>
           </div>
@@ -377,502 +235,345 @@
       </div>
     </div>
 
+    <!-- Info & Pricing -->
     <div class="two-columns" style="margin-top:32px;">
       <div class="card">
-        <h2>Pricing</h2>
-        <p class="meta">
-          All prices are EXW (Ex Works) and exclusive of VAT. Prices are per kg based on
-          the total ordered quantity.
-        </p>
-
+        <h3>Pricing Structure</h3>
+        <p class="meta">All prices are EXW and exclusive of VAT.</p>
         <table class="price-table">
           <thead>
             <tr>
               <th>Range (kg)</th>
-              <th>Minimal customer price<br/>(€ / kg)</th>
-              <th>CEAD price<br/>(€ / kg)</th>
+              <th class="numeric">Cust. Price (€)</th>
+              <th class="numeric">CEAD Price (€)</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>0 – 400</td>
-              <td>9.90</td>
-              <td>8.28</td>
-            </tr>
-            <tr>
-              <td>401 – 1200</td>
-              <td>9.50</td>
-              <td>8.08</td>
-            </tr>
-            <tr>
-              <td>1201 – 5200</td>
-              <td>8.80</td>
-              <td>7.73</td>
-            </tr>
-            <tr>
-              <td>&gt; 5200</td>
-              <td>8.30</td>
-              <td>7.48</td>
-            </tr>
+            <tr><td>0 – 400</td><td class="numeric">9.90</td><td class="numeric">8.28</td></tr>
+            <tr><td>401 – 1200</td><td class="numeric">9.50</td><td class="numeric">8.08</td></tr>
+            <tr><td>1201 – 5200</td><td class="numeric">8.80</td><td class="numeric">7.73</td></tr>
+            <tr><td>&gt; 5200</td><td class="numeric">8.30</td><td class="numeric">7.48</td></tr>
           </tbody>
         </table>
-
-        <p id="price-preview" class="meta"></p>
       </div>
 
       <div class="card">
-        <h2>Information</h2>
-        <p>
-          This is the dedicated CEAD order portal for HDPro between DBF and CEAD.
-          Once an order is committed in this system, material is reserved and a
-          purchase commitment is created.
-        </p>
-        <p>
-          Payment is required before shipping. Shipping is handled by CEAD, by
-          appointment. DBF will prepare the shipments for CEAD; CEAD arranges the
-          physical shipment and logistics.
-        </p>
-        <p>
-          <strong>Status definitions:</strong>
-        </p>
-        <ul>
+        <h3>Information</h3>
+        <ul style="padding-left: 20px; font-size: 13px; line-height: 1.6;">
           <li><strong>Reserved</strong> – order is received and material is reserved.</li>
+          <li><strong>PO received</strong> – PO has been sent by CEAD and is received by DBF</li>
+          <li><strong>Invoice Sent</strong> – Invoice has been sent to CEAD</li>
           <li><strong>Paid</strong> – payment is received, order is ready to be scheduled.</li>
           <li><strong>Ready for pickup</strong> – order is prepared and can be collected by CEAD / carrier.</li>
           <li><strong>Shipped</strong> – order has left DBF / CEAD and is on its way.</li>
         </ul>
-        <p>
-          If you made a mistake or need to change an order, please email Maarten.
+        <p style="font-size: 13px; margin-top:12px;">
+          For corrections, email: <a href="mailto:m.logtenberg@dutchboatfactory.com">m.logtenberg@dutchboatfactory.com</a>.
         </p>
       </div>
     </div>
   </div>
 
   <script>
-    const API_BASE = "https://script.google.com/macros/s/AKfycbzkOx-GwMl8k6uiBIjD7DCNSRJdB5n0M9cFQagsEp7NG1v0KhbOa2AUy5k6MRfmwoPP/exec";
-    const CUSTOMER_ID = 1;
+    "use strict"; // Enforce strict mode
 
-    const BAG_WEIGHT_KG = 20;
-    const BAGS_PER_PALLET = 24;
+    // Configuration
+    const CONFIG = {
+        apiBase: "https://script.google.com/macros/s/AKfycbzkOx-GwMl8k6uiBIjD7DCNSRJdB5n0M9cFQagsEp7NG1v0KhbOa2AUy5k6MRfmwoPP/exec",
+        customerId: 1,
+        bagWeight: 20,
+        bagsPerPallet: 24,
+        leadTimeDays: 5
+    };
 
-    function getCustomerUnitPrice(kg) {
-      if (kg <= 400) return 9.90;
-      if (kg <= 1200) return 9.50;
-      if (kg <= 5200) return 8.80;
-      return 8.30;
-    }
+    // Business Logic
+    const PRICING = [
+        { limit: 400,  cust: 9.90, cead: 8.28 },
+        { limit: 1200, cust: 9.50, cead: 8.08 },
+        { limit: 5200, cust: 8.80, cead: 7.73 },
+        { limit: Infinity, cust: 8.30, cead: 7.48 }
+    ];
 
-    function getCeadUnitPrice(kg) {
-      if (kg <= 400) return 8.28;
-      if (kg <= 1200) return 8.08;
-      if (kg <= 5200) return 7.73;
-      return 7.48;
+    function getPrice(kg) {
+        const tier = PRICING.find(p => kg <= p.limit);
+        return tier || PRICING[PRICING.length - 1]; // Fallback
     }
 
     function computePackaging(kg) {
-      if (!kg || kg <= 0) return { bags: 0, pallets: 0 };
-      const bags = Math.round(kg / BAG_WEIGHT_KG);
-      const pallets = Math.ceil(bags / BAGS_PER_PALLET);
-      return { bags, pallets };
+        if (!kg || kg <= 0) return { bags: 0, pallets: 0 };
+        const bags = Math.round(kg / CONFIG.bagWeight);
+        const pallets = Math.ceil(bags / CONFIG.bagsPerPallet);
+        return { bags, pallets };
     }
 
-    function formatEuro(value) {
-      return "€ " + value.toFixed(2);
+    // Utility Functions
+    const formatEuro = (val) => "€ " + val.toFixed(2);
+    const formatDate = (val) => {
+        if (!val) return "";
+        const d = new Date(val);
+        return isNaN(d) ? val : d.toLocaleDateString("en-GB");
+    };
+    
+    // Safely create a table cell to prevent XSS
+    function createCell(text, className = "") {
+        const td = document.createElement("td");
+        td.textContent = text !== null && text !== undefined ? text : "—";
+        if (className) td.className = className;
+        if (text === null || text === undefined || text === "") td.classList.add("empty");
+        return td;
     }
 
-    function formatDate(value) {
-      if (!value) return "";
-      const d = new Date(value);
-      if (isNaN(d)) return value;
-      return d.toLocaleDateString("en-GB");
+    function createStatusBadge(status) {
+        const td = document.createElement("td");
+        if (!status) return td;
+        
+        const span = document.createElement("span");
+        span.textContent = status;
+        // Sanitize class name for CSS
+        const safeStatus = status.toLowerCase().replace(/[^a-z0-9]/g, " "); 
+        span.className = `status-badge status-${safeStatus}`;
+        // Fallback for unknown statuses
+        span.onerror = () => span.className = "status-badge status-default"; 
+        
+        td.appendChild(span);
+        return td;
     }
 
-    function addBusinessDays(date, days) {
-      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      let added = 0;
-      while (added < days) {
-        d.setDate(d.getDate() + 1);
-        const day = d.getDay();
-        if (day !== 0 && day !== 6) {
-          added++;
-        }
-      }
-      return d;
-    }
-
-    function isWeekend(date) {
-      const day = date.getDay();
-      return day === 0 || day === 6;
-    }
-
-    function toInputDateString(date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    }
+    // --- Main Logic ---
 
     async function loadDashboard() {
-      const inventoryEl = document.getElementById("inventory");
-      const inventoryMetaEl = document.getElementById("inventory-meta");
-      const ordersLoadingEl = document.getElementById("orders-loading");
-      const ordersTableEl = document.getElementById("orders-table");
-      const tbody = ordersTableEl.querySelector("tbody");
+        const els = {
+            invVal: document.getElementById("inventory-display"),
+            invMeta: document.getElementById("inventory-meta"),
+            loader: document.getElementById("orders-loading"),
+            table: document.getElementById("orders-table"),
+            tbody: document.getElementById("orders-tbody")
+        };
 
-      inventoryEl.textContent = "Loading inventory…";
-      inventoryMetaEl.textContent = "";
-      ordersLoadingEl.style.display = "block";
-      ordersTableEl.style.display = "none";
-      tbody.innerHTML = "";
-
-      try {
-        const res = await fetch(
-          `${API_BASE}?action=dashboard&customer_id=${encodeURIComponent(
-            CUSTOMER_ID
-          )}`
-        );
-        const data = await res.json();
-
-        if (!data.success) {
-          throw new Error(data.error || "Unknown dashboard error");
-        }
-
-        // Inventory
-        if (!data.inventory) {
-          inventoryEl.textContent = "No inventory found.";
-        } else {
-          inventoryEl.textContent =
-            "Available inventory: " + data.inventory.available_kg + " kg";
-
-          if (data.inventory.updated_at) {
-            const dt = new Date(data.inventory.updated_at);
-            if (!isNaN(dt)) {
-              inventoryMetaEl.textContent =
-                "Last updated: " + dt.toLocaleString("en-GB");
-            }
-          }
-        }
-
-        // Orders
-        ordersLoadingEl.style.display = "none";
-
-        const orders = data.orders || [];
-        if (orders.length === 0) {
-          ordersLoadingEl.style.display = "block";
-          ordersLoadingEl.textContent = "No orders placed yet.";
-          return;
-        }
-
-        ordersTableEl.style.display = "table";
-        orders.forEach((order) => {
-          const tr = document.createElement("tr");
-          const d = new Date(order.timestamp);
-          const dateText = isNaN(d)
-            ? order.timestamp
-            : d.toLocaleDateString("en-GB");
-
-          const status = (order.status || "").toLowerCase();
-          const statusClass = status
-            ? "status-badge status-" + status.replace(/\s+/g, " ")
-            : "status-badge";
-
-          const bags = order.bags ?? computePackaging(order.quantity_kg).bags;
-          const pallets =
-            order.pallets ?? computePackaging(order.quantity_kg).pallets;
-
-          const plannedRaw = order.planned_shipping_date;
-          const shippedRaw = order.shipped_date;
-          const planned = formatDate(plannedRaw);
-          const shipped = formatDate(shippedRaw);
-
-          const plannedDisplay = planned || "—";
-          const shippedDisplay = shipped || "—";
-          const plannedClass = planned ? "" : "empty";
-          const shippedClass = shipped ? "" : "empty";
-
-          tr.innerHTML = `
-            <td>${dateText}</td>
-            <td>${order.ordered_by || ""}</td>
-            <td>${order.customer || ""}</td>
-            <td class="numeric">${order.quantity_kg || ""}</td>
-            <td class="numeric">${bags}</td>
-            <td class="numeric">${pallets}</td>
-            <td><span class="${statusClass}">${status || ""}</span></td>
-            <td class="${plannedClass}">${plannedDisplay}</td>
-            <td class="${shippedClass}">${shippedDisplay}</td>
-            <td>${order.comment ? escapeHtml(order.comment) : ""}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-      } catch (err) {
-        inventoryEl.textContent =
-          "Something went wrong while loading data.";
-        console.error(err);
-        ordersLoadingEl.textContent =
-          "Something went wrong while loading orders.";
-      }
-    }
-
-    function escapeHtml(text) {
-      return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    function updateQuantityInfo() {
-      const qtyInput = document.getElementById("quantity_kg");
-      const qty = Number(qtyInput.value);
-      const summaryEl = document.getElementById("quantity-summary");
-      const priceSummaryEl = document.getElementById("price-summary");
-      const pricePreviewEl = document.getElementById("price-preview");
-      const submitBtn = document.getElementById("submit-btn");
-      const qtyErrorEl = document.getElementById("quantity-error");
-
-      let validQuantity = false;
-      qtyInput.classList.remove("input-error");
-      qtyErrorEl.style.display = "none";
-      qtyErrorEl.textContent = "";
-
-      if (!qty || qty <= 0) {
-        summaryEl.textContent =
-          "Enter a multiple of 20 kg. We deliver in 20 kg bags (24 bags per euro pallet).";
-        priceSummaryEl.textContent = "";
-        pricePreviewEl.textContent = "";
-      } else if (qty % BAG_WEIGHT_KG !== 0) {
-        summaryEl.textContent =
-          "Quantity must be a multiple of 20 kg. For example: 400, 720, 1200…";
-        qtyInput.classList.add("input-error");
-        qtyErrorEl.textContent = "Quantity is not a multiple of 20 kg.";
-        qtyErrorEl.style.display = "block";
-        priceSummaryEl.textContent = "";
-        pricePreviewEl.textContent = "";
-      } else {
-        validQuantity = true;
-        const pkg = computePackaging(qty);
-        summaryEl.textContent = `${qty} kg = ${pkg.bags} bags, fits on ${pkg.pallets} euro pallet${pkg.pallets === 1 ? "" : "s"}.`;
-
-        const custUnit = getCustomerUnitPrice(qty);
-        const ceadUnit = getCeadUnitPrice(qty);
-        const custTotal = custUnit * qty;
-        const ceadTotal = ceadUnit * qty;
-
-        const text =
-          `For ${qty} kg: minimal customer price is ${formatEuro(custUnit)} / kg (${formatEuro(custTotal)} total), ` +
-          `CEAD price is ${formatEuro(ceadUnit)} / kg (${formatEuro(ceadTotal)} total).`;
-
-        priceSummaryEl.textContent = text;
-        pricePreviewEl.textContent = text;
-      }
-
-      submitBtn.disabled = !validQuantity;
-    }
-
-    function initPlannedShipping() {
-      const plannedInput = document.getElementById("planned_shipping_date");
-      const hintEl = document.getElementById("planned-hint");
-      const plannedErrorEl = document.getElementById("planned-error");
-
-      const today = new Date();
-      const earliest = addBusinessDays(today, 5);
-      const earliestStr = toInputDateString(earliest);
-
-      plannedInput.min = earliestStr;
-      hintEl.textContent =
-        `Use this to indicate when the material is needed. Earliest possible date is ${earliest.toLocaleDateString("en-GB")} (weekdays only).`;
-
-      function validatePlanned() {
-        plannedErrorEl.style.display = "none";
-        plannedErrorEl.textContent = "";
-        plannedInput.classList.remove("input-error");
-
-        if (!plannedInput.value) return;
-
-        const chosen = new Date(plannedInput.value);
-        if (isNaN(chosen)) {
-          plannedInput.classList.add("input-error");
-          plannedErrorEl.textContent = "Invalid date.";
-          plannedErrorEl.style.display = "block";
-          return;
-        }
-
-        const chosenDay = new Date(
-          chosen.getFullYear(),
-          chosen.getMonth(),
-          chosen.getDate()
-        );
-        const minDay = new Date(
-          earliest.getFullYear(),
-          earliest.getMonth(),
-          earliest.getDate()
-        );
-
-        if (chosenDay.getTime() < minDay.getTime()) {
-          plannedInput.classList.add("input-error");
-          plannedErrorEl.textContent =
-            "Planned shipping date must be at least 5 working days from today.";
-          plannedErrorEl.style.display = "block";
-          return;
-        }
-
-        if (isWeekend(chosenDay)) {
-          plannedInput.classList.add("input-error");
-          plannedErrorEl.textContent =
-            "Planned shipping date cannot be on a weekend.";
-          plannedErrorEl.style.display = "block";
-        }
-      }
-
-      plannedInput.addEventListener("change", validatePlanned);
-      plannedInput.addEventListener("input", validatePlanned);
-    }
-
-    function updateOrderedByUI() {
-      const select = document.getElementById("ordered_by_select");
-      const otherField = document.getElementById("ordered_by_other_field");
-      const otherInput = document.getElementById("ordered_by_other");
-
-      if (select.value === "Other") {
-        otherField.style.display = "block";
-        otherInput.required = true;
-      } else {
-        otherField.style.display = "none";
-        otherInput.required = false;
-        otherInput.value = "";
-      }
-    }
-
-    document
-      .getElementById("quantity_kg")
-      .addEventListener("input", updateQuantityInfo);
-
-    document
-      .getElementById("ordered_by_select")
-      .addEventListener("change", updateOrderedByUI);
-
-    document
-      .getElementById("order-form")
-      .addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const form = e.target;
-        const messageEl = document.getElementById("form-message");
-        const submitBtn = document.getElementById("submit-btn");
-
-        messageEl.textContent = "";
-        messageEl.className = "message";
-        submitBtn.disabled = true;
-
-        const orderedBySelect = form.ordered_by_select.value;
-        const orderedByOther = form.ordered_by_other.value.trim();
-        const customerName = form.customer_name.value.trim();
-        const quantity = Number(form.quantity_kg.value);
-        const comment = form.comment.value.trim();
-        const plannedShippingDate = form.planned_shipping_date.value;
-        const commitmentChecked = form.commitment.checked;
-
-        let orderedBy = orderedBySelect;
-        if (orderedBySelect === "Other") {
-          orderedBy = orderedByOther;
-        }
-
-        if (!orderedBy) {
-          messageEl.textContent =
-            "Please select or enter a name in 'Ordered by'.";
-          messageEl.classList.add("error");
-          submitBtn.disabled = false;
-          return;
-        }
-
-        if (!customerName) {
-          messageEl.textContent =
-            "Please enter a customer name.";
-          messageEl.classList.add("error");
-          submitBtn.disabled = false;
-          return;
-        }
-
-        if (!commitmentChecked) {
-          messageEl.textContent =
-            "You must agree to the purchase commitment.";
-          messageEl.classList.add("error");
-          submitBtn.disabled = false;
-          return;
-        }
-
-        if (!quantity || quantity <= 0 || quantity % BAG_WEIGHT_KG !== 0) {
-          messageEl.textContent =
-            "Quantity must be a valid multiple of 20 kg.";
-          messageEl.classList.add("error");
-          submitBtn.disabled = false;
-          updateQuantityInfo();
-          return;
-        }
-
-        if (!plannedShippingDate) {
-          messageEl.textContent =
-            "Planned shipping date is required.";
-          messageEl.classList.add("error");
-          submitBtn.disabled = false;
-          return;
-        }
+        els.invVal.textContent = "Loading...";
+        els.loader.style.display = "block";
+        els.table.style.display = "none";
+        els.tbody.innerHTML = "";
 
         try {
-          const payloadObj = {
-            customer_id: CUSTOMER_ID,
-            ordered_by: orderedBy,
-            customer_name: customerName,
-            quantity_kg: quantity,
-            comment: comment,
-            planned_shipping_date: plannedShippingDate,
-          };
+            const url = `${CONFIG.apiBase}?action=dashboard&customer_id=${encodeURIComponent(CONFIG.customerId)}`;
+            const res = await fetch(url);
+            const data = await res.json();
 
-          const res = await fetch(API_BASE, {
-            method: "POST",
-            body: new URLSearchParams({
-              payload: JSON.stringify(payloadObj),
-            }),
-          });
+            if (!data.success) throw new Error(data.error || "API Error");
 
-          const text = await res.text();
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch (parseErr) {
-            throw new Error("Unexpected response from server: " + text.slice(0, 120));
-          }
+            // Update Inventory
+            if (data.inventory) {
+                els.invVal.textContent = `${data.inventory.available_kg} kg available`;
+                if (data.inventory.updated_at) {
+                    const dt = new Date(data.inventory.updated_at);
+                    els.invMeta.textContent = `Last updated: ${dt.toLocaleString("en-GB")}`;
+                }
+            } else {
+                els.invVal.textContent = "Unknown";
+            }
 
-          if (!res.ok || !data.success) {
-            throw new Error(data.error || "Order could not be created.");
-          }
+            // Update Orders
+            els.loader.style.display = "none";
+            const orders = data.orders || [];
+            
+            if (orders.length === 0) {
+                els.loader.textContent = "No orders placed yet.";
+                els.loader.style.display = "block";
+            } else {
+                els.table.style.display = "table";
+                
+                // SECURE rendering using document.createElement
+                orders.forEach(order => {
+                    const tr = document.createElement("tr");
+                    
+                    const d = new Date(order.timestamp);
+                    const dateStr = isNaN(d) ? order.timestamp : d.toLocaleDateString("en-GB");
+                    const pkg = order.bags ? {bags: order.bags, pallets: order.pallets} : computePackaging(order.quantity_kg);
 
-          messageEl.textContent =
-            "Order submitted. This is a binding purchase commitment.";
-          messageEl.classList.add("success");
-          form.reset();
-          updateOrderedByUI();
-          updateQuantityInfo();
-          initPlannedShipping();
+                    tr.appendChild(createCell(dateStr));
+                    tr.appendChild(createCell(order.ordered_by));
+                    tr.appendChild(createCell(order.customer));
+                    tr.appendChild(createCell(order.quantity_kg, "numeric"));
+                    tr.appendChild(createCell(pkg.bags, "numeric"));
+                    tr.appendChild(createCell(pkg.pallets, "numeric"));
+                    tr.appendChild(createStatusBadge(order.status));
+                    tr.appendChild(createCell(formatDate(order.planned_shipping_date)));
+                    tr.appendChild(createCell(formatDate(order.shipped_date)));
+                    
+                    // Comment cell with title attribute for tooltip on hover
+                    const commentTd = createCell(order.comment);
+                    if(order.comment) commentTd.title = order.comment;
+                    tr.appendChild(commentTd);
 
-          await loadDashboard();
+                    els.tbody.appendChild(tr);
+                });
+            }
+
         } catch (err) {
-          console.error(err);
-          messageEl.textContent =
-            "Something went wrong while submitting the order: " + err.message;
-          messageEl.classList.add("error");
-        } finally {
-          updateQuantityInfo();
-          submitBtn.disabled = false;
+            console.error(err);
+            els.invVal.textContent = "Error";
+            els.invMeta.textContent = "Connection failed";
+            els.loader.textContent = "Could not load data. Refresh to try again.";
+            els.loader.style.color = "red";
         }
-      });
+    }
 
-    // initial load
+    // Form Handling
+    function setupForm() {
+        const els = {
+            qty: document.getElementById("quantity_kg"),
+            submit: document.getElementById("submit-btn"),
+            summary: document.getElementById("quantity-summary"),
+            pricePrev: document.getElementById("price-preview"),
+            qtyErr: document.getElementById("quantity-error"),
+            planned: document.getElementById("planned_shipping_date"),
+            plannedHint: document.getElementById("planned-hint"),
+            plannedErr: document.getElementById("planned-error"),
+            orderedSelect: document.getElementById("ordered_by_select"),
+            orderedOtherWrapper: document.getElementById("ordered_by_other_field"),
+            orderedOtherInput: document.getElementById("ordered_by_other"),
+            form: document.getElementById("order-form"),
+            msg: document.getElementById("form-message")
+        };
+
+        // Date Logic: Add leadTimeDays skipping weekends
+        const today = new Date();
+        let minDate = new Date(today);
+        let addedDays = 0;
+        
+        while (addedDays < CONFIG.leadTimeDays) {
+            minDate.setDate(minDate.getDate() + 1);
+            const day = minDate.getDay();
+            // 0 is Sunday, 6 is Saturday
+            if (day !== 0 && day !== 6) {
+                addedDays++;
+            }
+        }
+        
+        // Helper to format YYYY-MM-DD
+        const toInputStr = (d) => d.toISOString().split('T')[0];
+        
+        els.planned.min = toInputStr(minDate);
+        els.plannedHint.textContent = `Earliest possible: ${minDate.toLocaleDateString("en-GB")} (${CONFIG.leadTimeDays} business days lead)`;
+
+        // Validator Functions
+        const validateQty = () => {
+            const val = Number(els.qty.value);
+            els.qtyErr.style.display = "none";
+            els.qty.classList.remove("input-error");
+            
+            if (!val) {
+                els.summary.textContent = `Deliver in ${CONFIG.bagWeight}kg bags.`;
+                els.pricePrev.textContent = "";
+                return false;
+            }
+            if (val % CONFIG.bagWeight !== 0) {
+                els.qtyErr.textContent = `Must be multiple of ${CONFIG.bagWeight}kg`;
+                els.qtyErr.style.display = "block";
+                els.qty.classList.add("input-error");
+                els.pricePrev.textContent = "";
+                return false;
+            }
+
+            const pkg = computePackaging(val);
+            const prices = getPrice(val);
+            const totalCust = prices.cust * val;
+            
+            els.summary.textContent = `${val}kg = ${pkg.bags} bags (${pkg.pallets} pallet${pkg.pallets>1?'s':''})`;
+            els.pricePrev.textContent = `Price: ${formatEuro(prices.cust)}/kg (Total ${formatEuro(totalCust)})`;
+            return true;
+        };
+
+        const validateDate = () => {
+            els.plannedErr.style.display = "none";
+            const d = new Date(els.planned.value);
+            if (!els.planned.value || isNaN(d.getTime())) return false;
+            
+            const day = d.getDay();
+            if (day === 0 || day === 6) {
+                els.plannedErr.textContent = "No shipping on weekends.";
+                els.plannedErr.style.display = "block";
+                return false;
+            }
+            // Additional date checks (past date etc) handled by min attribute mostly
+            return true;
+        };
+
+        const checkForm = () => {
+             const isQtyOk = validateQty();
+             // We don't strictly disable button on date format, relying on HTML5 validation mostly
+             // But we do disable on invalid Qty logic
+             els.submit.disabled = !isQtyOk;
+        };
+
+        // Event Listeners
+        els.qty.addEventListener("input", checkForm);
+        els.planned.addEventListener("change", validateDate);
+        
+        els.orderedSelect.addEventListener("change", () => {
+            const isOther = els.orderedSelect.value === "Other";
+            els.orderedOtherWrapper.style.display = isOther ? "block" : "none";
+            els.orderedOtherInput.required = isOther;
+        });
+
+        els.form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            els.msg.style.display = "none";
+            els.submit.disabled = true;
+            els.submit.textContent = "Submitting...";
+
+            // Prepare Payload
+            const orderedBy = els.orderedSelect.value === "Other" 
+                ? els.orderedOtherInput.value.trim() 
+                : els.orderedSelect.value;
+            
+            const payload = {
+                customer_id: CONFIG.customerId,
+                ordered_by: orderedBy,
+                customer_name: document.getElementById("customer_name").value.trim(),
+                quantity_kg: Number(els.qty.value),
+                comment: document.getElementById("comment").value.trim(),
+                planned_shipping_date: els.planned.value
+            };
+
+            try {
+                const res = await fetch(CONFIG.apiBase, {
+                    method: "POST",
+                    body: new URLSearchParams({ payload: JSON.stringify(payload) })
+                });
+                const txt = await res.text();
+                // Google Apps Script sometimes returns redirects or HTML on errors, try parse
+                let data;
+                try { data = JSON.parse(txt); } catch(e) { throw new Error("Invalid server response"); }
+
+                if (!data.success) throw new Error(data.error || "Server rejected order");
+
+                // Success
+                els.msg.className = "message success";
+                els.msg.textContent = "Order successfully placed!";
+                els.form.reset();
+                els.orderedSelect.dispatchEvent(new Event("change")); // Reset "Other" field
+                validateQty(); // Reset text
+                loadDashboard(); // Refresh table
+
+            } catch (err) {
+                els.msg.className = "message error";
+                els.msg.textContent = "Error: " + err.message;
+            } finally {
+                els.submit.disabled = false;
+                els.submit.textContent = "Place order";
+                els.msg.style.display = "block";
+            }
+        });
+    }
+
+    document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
+
+    // Init
+    setupForm();
     loadDashboard();
-    updateOrderedByUI();
-    updateQuantityInfo();
-    initPlannedShipping();
+
   </script>
 </body>
 </html>

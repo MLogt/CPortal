@@ -114,30 +114,45 @@ function getOrders() {
   if (!sheet) return [];
 
   const data = sheet.getDataRange().getValues();
+  const headers = data[0];
   const orders = [];
+
+  // Find column indices from headers
+  const colIndex = {};
+  headers.forEach((header, idx) => {
+    const h = String(header).toLowerCase().trim();
+    if (h === 'id') colIndex.id = idx;
+    if (h === 'timestamp') colIndex.timestamp = idx;
+    if (h === 'customer_id') colIndex.customer_id = idx;
+    if (h === 'customer') colIndex.customer = idx;
+    if (h === 'ordered_by') colIndex.ordered_by = idx;
+    if (h === 'quantity_kg') colIndex.quantity_kg = idx;
+    if (h === 'status') colIndex.status = idx;
+    if (h === 'comment') colIndex.comment = idx;
+    if (h === 'planned_shipping_date') colIndex.planned_shipping_date = idx;
+  });
 
   // Skip header row
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (!row[0]) continue;
+    if (!row[colIndex.id] && !row[colIndex.timestamp]) continue;
 
-    const timestamp = row[0] instanceof Date ?
-      Utilities.formatDate(row[0], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss") :
-      String(row[0]);
+    const timestampVal = row[colIndex.timestamp];
+    const timestamp = timestampVal instanceof Date ?
+      Utilities.formatDate(timestampVal, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss") :
+      String(timestampVal || "");
 
-    const plannedDate = row[6] instanceof Date ?
-      Utilities.formatDate(row[6], Session.getScriptTimeZone(), "yyyy-MM-dd") :
-      (row[6] ? String(row[6]) : null);
+    const plannedDate = parseDate(row[colIndex.planned_shipping_date]);
 
     orders.push({
       timestamp: timestamp,
-      customer_id: row[1],
-      ordered_by: row[2] || "",
-      customer: row[3] || "",
-      quantity_kg: Number(row[4]) || 0,
-      status: (row[5] || "reserved").toLowerCase(),
+      customer_id: row[colIndex.customer_id] || "",
+      ordered_by: row[colIndex.ordered_by] || "",
+      customer: row[colIndex.customer] || "",
+      quantity_kg: Number(row[colIndex.quantity_kg]) || 0,
+      status: String(row[colIndex.status] || "reserved").toLowerCase(),
       planned_shipping_date: plannedDate,
-      comment: row[7] || ""
+      comment: row[colIndex.comment] || ""
     });
   }
 
@@ -307,6 +322,42 @@ function generateDateRange(startDate, days) {
   }
 
   return dates;
+}
+
+// Parse date from various formats (Date object, DD-MM-YYYY string, etc.)
+function parseDate(value) {
+  if (!value) return null;
+
+  // If it's already a Date object
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  }
+
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // Try DD-MM-YYYY or D-M-YYYY format
+  const ddmmyyyy = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (ddmmyyyy) {
+    const day = ddmmyyyy[1].padStart(2, '0');
+    const month = ddmmyyyy[2].padStart(2, '0');
+    const year = ddmmyyyy[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  // Try YYYY-MM-DD format (already correct)
+  const yyyymmdd = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (yyyymmdd) {
+    return str;
+  }
+
+  // Fallback: try to parse as date
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  }
+
+  return null;
 }
 
 // ============================================

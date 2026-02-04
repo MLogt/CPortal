@@ -100,6 +100,7 @@
     .chip-nov { background: #059669; color: white; }
     .chip-dec { background: #e11d48; color: white; }
     .chip-jan { background: #0284c7; color: white; }
+    .chip-negative { background: #dc2626; color: white; font-weight: 700; }
 
     /* --- Tables --- */
     .table-wrapper { width: 100%; overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
@@ -389,7 +390,55 @@
     const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
     const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    // Calculate stock available TODAY (for display)
+    // Get the next incoming stock date after today
+    function getNextIncomingDate() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        for (const entry of stockTimeline) {
+            const entryDate = new Date(entry.date);
+            if (entryDate > today) {
+                return entry.date;
+            }
+        }
+        return null;
+    }
+
+    // Calculate stock available for IMMEDIATE delivery
+    // = current stock minus all pending orders before next incoming
+    function getAvailableForImmediateDelivery() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Get current stock (all incoming up to today)
+        let currentStock = 0;
+        stockTimeline.forEach(entry => {
+            if (new Date(entry.date) <= today) {
+                currentStock += entry.incoming_kg;
+            }
+        });
+
+        // Find next incoming date
+        const nextIncoming = getNextIncomingDate();
+
+        // Subtract all pending orders that will ship before next incoming
+        existingOrders.forEach(order => {
+            const status = order.status.toLowerCase();
+            if (status === 'shipped' || status === 'delivered' || status === 'cancelled') return;
+
+            if (order.planned_shipping_date) {
+                const plannedDate = new Date(order.planned_shipping_date);
+                // If no next incoming, or order is before next incoming, subtract from current stock
+                if (!nextIncoming || plannedDate < new Date(nextIncoming)) {
+                    currentStock -= order.quantity_kg;
+                }
+            }
+        });
+
+        return currentStock;
+    }
+
+    // Calculate stock available TODAY (for display) - legacy
     function getCurrentAvailableStock() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -443,28 +492,24 @@
 
     // Get month class for an order
     function getOrderMonthClass(order) {
-        if (order.status === 'shipped' || order.status === 'cancelled' || order.status === 'invoice sent') {
+        const status = order.status.toLowerCase();
+
+        // Gray only for shipped/delivered/cancelled
+        if (status === 'shipped' || status === 'delivered' || status === 'cancelled') {
             return 'order-shipped';
         }
 
         if (!order.planned_shipping_date) return '';
 
         const plannedDate = new Date(order.planned_shipping_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const nextIncoming = getNextIncomingDate();
 
-        // Calculate if stock is available for this order on its planned date
-        const availableOnDate = calculateAvailableOnDate(order.planned_shipping_date);
-
-        // Check if it can be delivered now (within current month with current stock)
-        const currentStock = getCurrentAvailableStock();
-        const isCurrentMonth = plannedDate.getMonth() === today.getMonth() && plannedDate.getFullYear() === today.getFullYear();
-
-        if (isCurrentMonth && currentStock >= order.quantity_kg) {
+        // Green = order scheduled before next incoming (will be fulfilled from current stock)
+        if (!nextIncoming || plannedDate < new Date(nextIncoming)) {
             return 'order-now';
         }
 
-        // Return month-based class
+        // Return month-based class for future orders
         const monthName = MONTH_NAMES[plannedDate.getMonth()];
         return `order-month-${monthName}`;
     }
@@ -487,25 +532,33 @@
             stockTimeline = data.stock_timeline || [];
             existingOrders = data.orders || [];
 
-            const currentAvailable = getCurrentAvailableStock();
-            els.stockVal.textContent = `${currentAvailable} kg beschikbaar voor directe levering`;
-            els.stockMeta.textContent = `Voorraad per maand (na orders):`;
+            const immediateAvailable = getAvailableForImmediateDelivery();
+            const nextIncoming = getNextIncomingDate();
+            const nextIncomingText = nextIncoming ? ` (tot ${formatDateShort(nextIncoming)})` : '';
+
+            els.stockVal.textContent = `${immediateAvailable} kg beschikbaar voor directe levering`;
+            els.stockMeta.textContent = `Vrije voorraad na alle ingeplande orders${nextIncomingText}:`;
 
             // Show monthly forecast
             const forecast = getMonthlyStockForecast();
             els.stockMonthly.innerHTML = '';
 
-            // Add "Now" chip
+            // Add "Now" chip with immediate available
             const nowChip = document.createElement('span');
-            nowChip.className = 'month-chip chip-now';
-            nowChip.textContent = `Nu: ${currentAvailable} kg`;
+            nowChip.className = immediateAvailable < 0 ? 'month-chip chip-negative' : 'month-chip chip-now';
+            nowChip.textContent = `Vrij: ${immediateAvailable} kg`;
             els.stockMonthly.appendChild(nowChip);
 
             // Add monthly chips (only show next 6 months with changes)
             forecast.slice(0, 6).forEach(m => {
                 const chip = document.createElement('span');
-                chip.className = `month-chip chip-${m.month}`;
-                chip.textContent = `${m.label}: ${m.available} kg`;
+                if (m.available < 0) {
+                    chip.className = 'month-chip chip-negative';
+                    chip.textContent = `${m.label}: ${m.available} kg ⚠`;
+                } else {
+                    chip.className = `month-chip chip-${m.month}`;
+                    chip.textContent = `${m.label}: ${m.available} kg`;
+                }
                 els.stockMonthly.appendChild(chip);
             });
 

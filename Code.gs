@@ -84,7 +84,7 @@ function calculateOrderFulfillment(order, stockTimeline, allOrders) {
   const status = order.status.toLowerCase();
 
   // Already completed orders - no fulfillment calculation needed
-  if (status === 'shipped' || status === 'delivered' || status === 'cancelled') {
+  if (status === 'shipped' || status === 'delivered' || status === 'cancelled' || status === 'invoice sent') {
     return {
       canFulfillOnPlanned: true,
       earliestDate: order.planned_shipping_date,
@@ -104,7 +104,7 @@ function calculateOrderFulfillment(order, stockTimeline, allOrders) {
   const stockPeriods = buildStockPeriods(stockTimeline, allOrders);
 
   // Find which period the planned date falls into
-  let canFulfillOnPlanned = false;
+  let orderPeriod = null;
 
   for (const period of stockPeriods) {
     const periodStart = new Date(period.startDate);
@@ -112,15 +112,13 @@ function calculateOrderFulfillment(order, stockTimeline, allOrders) {
 
     // Check if planned date is in this period
     if (plannedDate >= periodStart && (!periodEnd || plannedDate < periodEnd)) {
-      // Check if there's enough free stock in this period
-      if (period.freeStock >= order.quantity_kg) {
-        canFulfillOnPlanned = true;
-      }
+      orderPeriod = period;
       break;
     }
   }
 
-  if (canFulfillOnPlanned) {
+  // If period has freeStock >= 0, all orders in that period (including this one) can be fulfilled
+  if (orderPeriod && orderPeriod.freeStock >= 0) {
     return {
       canFulfillOnPlanned: true,
       earliestDate: order.planned_shipping_date,
@@ -128,13 +126,25 @@ function calculateOrderFulfillment(order, stockTimeline, allOrders) {
     };
   }
 
-  // Find earliest period where this order can be fulfilled
+  // Period has negative free stock - find earliest period where we could move this order
+  // We need to find a period where adding this order still leaves freeStock >= 0
+  // That means: period.freeStock + period.committedOrders >= period.committedOrders - order.quantity_kg + order.quantity_kg
+  // Simplified: we need period.freeStock >= 0 already, OR we need a period with enough buffer
+
   for (const period of stockPeriods) {
+    // Can this order fit in this period?
+    // The period already has its own committed orders. If we ADD this order to this period:
+    // newFreeStock = period.stockPool - period.committedOrders - order.quantity_kg (if order wasn't already counted)
+    // But the order IS already counted in its original period, not in other periods
+    // So for other periods, we check: period.freeStock >= order.quantity_kg
+
     if (period.freeStock >= order.quantity_kg) {
       const periodStart = new Date(period.startDate);
 
-      // Find first weekday in this period
-      let earliestDate = new Date(periodStart);
+      // Find first weekday in this period that's after the planned date (or period start)
+      let earliestDate = new Date(Math.max(periodStart, plannedDate));
+
+      // Move to first weekday
       while (earliestDate.getDay() === 0 || earliestDate.getDay() === 6) {
         earliestDate.setDate(earliestDate.getDate() + 1);
       }
@@ -149,7 +159,7 @@ function calculateOrderFulfillment(order, stockTimeline, allOrders) {
     }
   }
 
-  // Cannot fulfill at all
+  // Cannot fulfill at all with current stock projections
   return {
     canFulfillOnPlanned: false,
     earliestDate: null,

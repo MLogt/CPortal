@@ -514,8 +514,8 @@
     function getOrderMonthClass(order) {
         const status = order.status.toLowerCase();
 
-        // Gray only for shipped/delivered/cancelled
-        if (status === 'shipped' || status === 'delivered' || status === 'cancelled') {
+        // Gray for completed orders (shipped/delivered/cancelled/invoice sent)
+        if (status === 'shipped' || status === 'delivered' || status === 'cancelled' || status === 'invoice sent') {
             return 'order-shipped';
         }
 
@@ -602,7 +602,7 @@
                 // Build fulfillment cell
                 let fulfillmentHtml = '';
                 const status = order.status.toLowerCase();
-                if (status === 'shipped' || status === 'delivered' || status === 'cancelled') {
+                if (status === 'shipped' || status === 'delivered' || status === 'cancelled' || status === 'invoice sent') {
                     fulfillmentHtml = '<span style="color:#6b7280">-</span>';
                 } else if (order.can_fulfill_on_planned) {
                     fulfillmentHtml = '<span style="color:#16a34a">✓ On time</span>';

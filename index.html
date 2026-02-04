@@ -2,35 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>HDPro Ordering Portal - Smart Inventory</title>
+  <title>HDPro Ordering Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    /* ... (Houd je bestaande CSS-styles hier aan) ... */
-    :root { --primary: #111827; --bg-body: #f5f5f7; --bg-card: #ffffff; --border: #e5e7eb; --text-main: #222; --text-muted: #6b7280; }
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; background: var(--bg-body); color: var(--text-main); }
-    .container { max-width: 1100px; margin: 0 auto; background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
-    .status-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; text-transform: capitalize; }
+    :root {
+      --primary: #111827;
+      --bg-body: #f5f5f7;
+      --bg-card: #ffffff;
+      --border: #e5e7eb;
+      --text-main: #222;
+      --text-muted: #6b7280;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg-body);
+      color: var(--text-main);
+    }
+
+    h1, h2, h3 { margin-top: 0; }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: var(--bg-card);
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    /* --- Status Badges --- */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
     .status-reserved { background: #fef3c7; color: #92400e; }
     .status-paid { background: #dcfce7; color: #166534; }
-    .inventory-card { display: inline-block; padding: 12px 16px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; margin-bottom: 16px; }
+    .status-shipped { background: #dbeafe; color: #1d4ed8; }
+    .status-ready\ for\ pickup { background: #e0f2fe; color: #0369a1; }
+    .status-cancelled { background: #fee2e2; color: #b91c1c; }
+    .status-default { background: #f3f4f6; color: #374151; }
+
+    /* --- Inventory Card --- */
+    .inventory-card {
+      display: inline-block;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      margin-bottom: 16px;
+    }
     .inventory-val { font-weight: 700; font-size: 20px; color: #1e3a8a; }
-    .meta { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
-    .meta-error { margin-top: 4px; font-size: 12px; color: #b91c1c; }
-    .table-wrapper { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+    
+    /* --- Tables --- */
+    .table-wrapper { width: 100%; overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
     table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
     th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: #f9fafb; font-weight: 600; }
-    .numeric { text-align: right; }
+    th { background: #f9fafb; font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+    .numeric { text-align: right; font-variant-numeric: tabular-nums; }
+    .meta { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .meta-error { margin-top: 4px; font-size: 12px; color: #b91c1c; }
+
+    /* --- Form --- */
     form { margin-top: 16px; padding: 20px; border-radius: 8px; border: 1px solid var(--border); background: #f9fafb; }
+    label { display: block; font-size: 14px; margin-bottom: 4px; font-weight: 600; color: #374151; }
     .field { margin-bottom: 16px; }
-    label { display: block; font-size: 14px; margin-bottom: 4px; font-weight: 600; }
-    input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; box-sizing: border-box; }
-    button[type="submit"] { background: var(--primary); color: #fff; border: none; padding: 10px 20px; border-radius: 999px; font-weight: 600; cursor: pointer; }
-    button[type="submit"]:disabled { opacity: 0.5; }
+    input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px; box-sizing: border-box; }
+    .input-error { border-color: #b91c1c !important; background-color: #fef2f2; }
+    
+    button[type="submit"] {
+      background: var(--primary); color: #fff; border: none; padding: 10px 20px; border-radius: 999px;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; width: 100%;
+    }
+    button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+    
     .two-columns { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 24px; }
     @media (min-width: 768px) { .two-columns { grid-template-columns: 3fr 2fr; } }
-    .card { border-radius: 8px; border: 1px solid var(--border); padding: 16px; background: #f9fafb; }
-    .message { margin-top: 12px; font-size: 14px; padding: 8px; border-radius: 4px; display: none; }
+    
+    .card { border-radius: 8px; border: 1px solid var(--border); padding: 16px; background: #f9fafb; font-size: 14px; }
+    .message { margin-top: 12px; font-size: 14px; padding: 10px; border-radius: 6px; display: none; }
     .message.error { background: #fee2e2; color: #b91c1c; display: block; }
     .message.success { background: #dcfce7; color: #166534; display: block; }
   </style>
@@ -39,19 +96,19 @@
   <div class="container">
     <header>
       <h1>HDPro Ordering Portal</h1>
-      <p class="meta">Stock levels are calculated based on your requested shipping date, including future inbound deliveries.</p>
+      <p class="meta">Stock level indicates direct availability. Future availability is calculated based on your requested shipping date.</p>
     </header>
 
     <div class="two-columns">
       <div>
         <div class="inventory-card">
           <div id="inventory-display" class="inventory-val">Loading...</div>
-          <div id="inventory-meta" class="meta small">Checking stock levels...</div>
+          <div id="inventory-meta" class="meta small" style="margin-bottom:0; margin-top:4px;">Checking stock levels...</div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-            <h2>Orders</h2>
-            <button id="refresh-btn" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:13px; text-decoration:underline;">Refresh</button>
+            <h2>Recent Orders</h2>
+            <button id="refresh-btn" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:13px; text-decoration:underline;">Refresh Dashboard</button>
         </div>
         
         <div id="orders-loading" class="meta">Loading orders...</div>
@@ -90,15 +147,21 @@
             </select>
           </div>
 
+          <div class="field" id="ordered_by_other_field" style="display:none;">
+            <label for="ordered_by_other">Other name</label>
+            <input id="ordered_by_other" name="ordered_by_other" type="text" />
+          </div>
+
           <div class="field">
             <label for="customer_name">Customer name</label>
             <input id="customer_name" name="customer_name" type="text" placeholder="e.g. Klant BV" required />
           </div>
 
           <div class="field">
-            <label for="planned_shipping_date">Requested shipping date</label>
+            <label for="planned_shipping_date">Planned shipping date</label>
             <input id="planned_shipping_date" name="planned_shipping_date" type="date" required />
             <div id="planned-hint" class="meta small" style="margin-top:4px;"></div>
+            <div id="planned-error" class="meta-error" style="display:none;"></div>
           </div>
 
           <div class="field">
@@ -107,9 +170,16 @@
             <div id="quantity-error" class="meta-error" style="display:none;"></div>
           </div>
 
-          <div class="field" style="background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e3a8a;">
-             <div id="quantity-summary">Select date and quantity.</div>
+          <div class="field" style="background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e3a8a; border: 1px solid #bfdbfe;">
+             <div id="quantity-summary">Enter date and quantity.</div>
              <div id="price-preview" style="margin-top:4px; font-weight:600;"></div>
+          </div>
+
+          <div class="field" style="font-size: 13px;">
+            <label style="font-weight: normal; display: flex; align-items: flex-start; gap: 8px;">
+              <input type="checkbox" required style="width: auto; margin-top: 3px;">
+              <span>I confirm this binding purchase commitment.</span>
+            </label>
           </div>
 
           <button type="submit" id="submit-btn" disabled>Place order</button>
@@ -123,9 +193,10 @@
     "use strict";
 
     const CONFIG = {
-        apiBase: "JOUW_WEB_APP_URL_HIER", 
+        apiBase: "https://script.google.com/macros/s/AKfycbxTvFCnT0dWx3jfGbYq0vxwU7r6ygVeq5rCHGgfWLMDCMKubrm7nximDNM77Ybw4IW5/exec", 
         customerId: 1,
         bagWeight: 20,
+        bagsPerPallet: 24,
         leadTimeDays: 5
     };
 
@@ -136,38 +207,32 @@
         { limit: Infinity, cust: 8.30 }
     ];
 
-    // State management
+    // App State
     let currentBaseInventory = 0;
     let inboundStock = [];
     let existingOrders = [];
 
     // --- Business Logic ---
-
     function getPrice(kg) {
         return PRICING.find(p => kg <= p.limit) || PRICING[PRICING.length - 1];
     }
 
     function calculateAvailableOnDate(targetDateStr) {
+        if(!targetDateStr) return currentBaseInventory;
         const targetDate = new Date(targetDateStr);
-        let available = currentBaseInventory;
+        let available = Number(currentBaseInventory);
 
-        // Tel alle toekomstige leveringen op die VÓÓR of OP de gekozen datum binnenkomen
         inboundStock.forEach(item => {
-            if (new Date(item.date) <= targetDate) {
-                available += Number(item.kg);
-            }
+            if (new Date(item.date) <= targetDate) available += Number(item.kg);
         });
 
-        // Trek alle bestaande orders af die gepland staan VÓÓR of OP de gekozen datum
-        // (Alleen als die nog niet verzonden zijn/voorraad al hebben verlaten)
         existingOrders.forEach(order => {
-            if (order.status !== 'Shipped' && order.status !== 'Cancelled') {
+            if (order.status !== 'shipped' && order.status !== 'cancelled') {
                 if (new Date(order.planned_shipping_date) <= targetDate) {
                     available -= Number(order.quantity_kg);
                 }
             }
         });
-
         return available;
     }
 
@@ -183,38 +248,36 @@
         try {
             const res = await fetch(`${CONFIG.apiBase}?action=dashboard&customer_id=${CONFIG.customerId}`);
             const data = await res.json();
-
             if (!data.success) throw new Error("API Error");
 
-            // Update State
             currentBaseInventory = data.inventory.available_kg;
             inboundStock = data.inbound || [];
             existingOrders = data.orders || [];
 
-            els.invVal.textContent = `${currentBaseInventory} kg in magazijn`;
-            els.invMeta.textContent = `Updates automatically based on date selection.`;
+            els.invVal.textContent = `${currentBaseInventory} kg direct stock`;
+            els.invMeta.textContent = `Updates based on selected shipping date.`;
 
-            // Render Table
             els.loader.style.display = "none";
             els.table.style.display = "table";
             els.tbody.innerHTML = "";
             
             existingOrders.forEach(order => {
-                const tr = document.body.appendChild(document.createElement("tr"));
+                const tr = document.createElement("tr");
+                const d = new Date(order.timestamp);
                 tr.innerHTML = `
-                    <td>${new Date(order.timestamp).toLocaleDateString("en-GB")}</td>
+                    <td>${isNaN(d) ? order.timestamp : d.toLocaleDateString("en-GB")}</td>
                     <td>${order.ordered_by}</td>
                     <td>${order.customer}</td>
                     <td class="numeric">${order.quantity_kg}</td>
                     <td><span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span></td>
-                    <td>${order.planned_shipping_date}</td>
+                    <td>${order.planned_shipping_date ? new Date(order.planned_shipping_date).toLocaleDateString("en-GB") : '-'}</td>
                     <td>${order.comment || ''}</td>
                 `;
                 els.tbody.appendChild(tr);
             });
-
         } catch (err) {
-            els.invVal.textContent = "Error loading data";
+            els.invVal.textContent = "Error";
+            els.invMeta.textContent = "Could not connect to server.";
         }
     }
 
@@ -226,22 +289,29 @@
             summary: document.getElementById("quantity-summary"),
             pricePrev: document.getElementById("price-preview"),
             qtyErr: document.getElementById("quantity-error"),
+            plannedHint: document.getElementById("planned-hint"),
+            orderedSelect: document.getElementById("ordered_by_select"),
+            orderedOther: document.getElementById("ordered_by_other_field"),
+            msg: document.getElementById("form-message"),
             form: document.getElementById("order-form")
         };
 
-        // Lead time logic
+        // Date constraints
         const today = new Date();
         let minDate = new Date(today);
-        for(let i=0; i<CONFIG.leadTimeDays; i++) {
+        let added = 0;
+        while(added < CONFIG.leadTimeDays) {
             minDate.setDate(minDate.getDate() + 1);
-            if(minDate.getDay() === 0 || minDate.getDay() === 6) i--; 
+            if(minDate.getDay() !== 0 && minDate.getDay() !== 6) added++;
         }
         els.date.min = minDate.toISOString().split('T')[0];
+        els.plannedHint.textContent = `Earliest possible: ${minDate.toLocaleDateString("en-GB")}`;
 
         const validate = () => {
             const qty = Number(els.qty.value);
             const dateVal = els.date.value;
             els.qtyErr.style.display = "none";
+            els.qty.classList.remove("input-error");
             
             if (!qty || !dateVal) return false;
 
@@ -250,17 +320,19 @@
             if (qty % 20 !== 0) {
                 els.qtyErr.textContent = "Must be multiple of 20kg";
                 els.qtyErr.style.display = "block";
+                els.qty.classList.add("input-error");
                 return false;
             }
 
             if (qty > available) {
                 els.qtyErr.textContent = `Insufficient stock for this date. Available: ${available}kg`;
                 els.qtyErr.style.display = "block";
+                els.qty.classList.add("input-error");
                 return false;
             }
 
             const price = getPrice(qty).cust;
-            els.summary.textContent = `Projected availability on ${dateVal}: ${available}kg.`;
+            els.summary.textContent = `Availability on ${new Date(dateVal).toLocaleDateString("en-GB")}: ${available}kg.`;
             els.pricePrev.textContent = `Price: € ${price.toFixed(2)}/kg (Total € ${(price * qty).toFixed(2)})`;
             return true;
         };
@@ -269,16 +341,50 @@
             els.submit.disabled = !validate();
         }));
 
+        els.orderedSelect.addEventListener("change", () => {
+            els.orderedOther.style.display = els.orderedSelect.value === "Other" ? "block" : "none";
+        });
+
         els.form.addEventListener("submit", async (e) => {
             e.preventDefault();
+            els.msg.style.display = "none";
             els.submit.disabled = true;
-            els.submit.textContent = "Processing...";
-            
-            // Payload & Fetch (Bestaande POST logica)
-            // ... (Houd hier je bestaande submit-fetch code)
+            els.submit.textContent = "Submitting...";
+
+            const payload = {
+                customer_id: CONFIG.customerId,
+                ordered_by: els.orderedSelect.value === "Other" ? document.getElementById("ordered_by_other").value : els.orderedSelect.value,
+                customer_name: document.getElementById("customer_name").value,
+                quantity_kg: Number(els.qty.value),
+                comment: document.getElementById("comment") ? document.getElementById("comment").value : "",
+                planned_shipping_date: els.date.value
+            };
+
+            try {
+                const res = await fetch(CONFIG.apiBase, {
+                    method: "POST",
+                    body: new URLSearchParams({ payload: JSON.stringify(payload) })
+                });
+                const data = await res.json();
+                if(!data.success) throw new Error(data.error);
+
+                els.msg.className = "message success";
+                els.msg.textContent = "Order placed successfully!";
+                els.msg.style.display = "block";
+                els.form.reset();
+                loadDashboard();
+            } catch (err) {
+                els.msg.className = "message error";
+                els.msg.textContent = err.message;
+                els.msg.style.display = "block";
+            } finally {
+                els.submit.disabled = false;
+                els.submit.textContent = "Place order";
+            }
         });
     }
 
+    document.getElementById("refresh-btn").onclick = loadDashboard;
     loadDashboard();
     setupForm();
   </script>

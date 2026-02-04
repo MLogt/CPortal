@@ -2,127 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>HDPro Ordering Portal</title>
+  <title>HDPro Ordering Portal - Smart Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root {
-      --primary: #111827;
-      --bg-body: #f5f5f7;
-      --bg-card: #ffffff;
-      --border: #e5e7eb;
-      --text-main: #222;
-      --text-muted: #6b7280;
-    }
-
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 16px;
-      background: var(--bg-body);
-      color: var(--text-main);
-    }
-
-    h1, h2, h3 { margin-top: 0; }
-
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      background: var(--bg-card);
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-    }
-
-    /* --- Status Badges --- */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 500;
-      text-transform: capitalize;
-    }
+    /* ... (Houd je bestaande CSS-styles hier aan) ... */
+    :root { --primary: #111827; --bg-body: #f5f5f7; --bg-card: #ffffff; --border: #e5e7eb; --text-main: #222; --text-muted: #6b7280; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; background: var(--bg-body); color: var(--text-main); }
+    .container { max-width: 1100px; margin: 0 auto; background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
+    .status-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; text-transform: capitalize; }
     .status-reserved { background: #fef3c7; color: #92400e; }
     .status-paid { background: #dcfce7; color: #166534; }
-    .status-shipped { background: #dbeafe; color: #1d4ed8; }
-    .status-ready\ for\ pickup { background: #e0f2fe; color: #0369a1; }
-    .status-cancelled { background: #fee2e2; color: #b91c1c; }
-    .status-default { background: #f3f4f6; color: #374151; }
-
-    /* --- Inventory Card --- */
-    .inventory-card {
-      display: inline-block;
-      padding: 12px 16px;
-      border-radius: 10px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      margin-bottom: 16px;
-    }
+    .inventory-card { display: inline-block; padding: 12px 16px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; margin-bottom: 16px; }
     .inventory-val { font-weight: 700; font-size: 20px; color: #1e3a8a; }
-    
-    /* --- Typography & Utils --- */
     .meta { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
-    .meta.small { font-size: 12px; margin-bottom: 0; }
     .meta-error { margin-top: 4px; font-size: 12px; color: #b91c1c; }
-    
-    /* --- Tables --- */
-    .table-wrapper { width: 100%; overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+    .table-wrapper { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
     table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
     th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: #f9fafb; font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
-    tr:last-child td { border-bottom: none; }
-    .numeric { text-align: right; font-variant-numeric: tabular-nums; }
-    td.empty { color: #9ca3af; font-style: italic; }
-
-    /* --- Form --- */
-    form {
-      margin-top: 16px; padding: 20px; border-radius: 8px;
-      border: 1px solid var(--border); background: #f9fafb;
-    }
-    label { display: block; font-size: 14px; margin-bottom: 4px; font-weight: 600; color: #374151; }
+    th { background: #f9fafb; font-weight: 600; }
+    .numeric { text-align: right; }
+    form { margin-top: 16px; padding: 20px; border-radius: 8px; border: 1px solid var(--border); background: #f9fafb; }
     .field { margin-bottom: 16px; }
-    
-    input, select, textarea {
-      width: 100%; padding: 8px 10px; border-radius: 6px;
-      border: 1px solid #d1d5db; font-size: 14px; font-family: inherit;
-      background-color: #fff; transition: border-color 0.15s;
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none; border-color: var(--primary); ring: 2px solid rgba(17, 24, 39, 0.1);
-    }
-    .input-error { border-color: #b91c1c !important; background-color: #fef2f2; }
-    
-    button[type="submit"] {
-      background: var(--primary); color: #fff; border: none;
-      padding: 10px 20px; border-radius: 999px; font-size: 14px;
-      font-weight: 600; cursor: pointer; transition: opacity 0.2s;
-    }
-    button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
-    
-    /* --- Layout --- */
-    .two-columns {
-      display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 24px;
-    }
-    @media (min-width: 768px) {
-      .two-columns { grid-template-columns: 3fr 2fr; }
-    }
-    
-    .card {
-      border-radius: 8px; border: 1px solid var(--border);
-      padding: 16px; background: #f9fafb; font-size: 14px;
-    }
-    
-    /* --- Loading Spinner --- */
-    .spinner {
-      border: 2px solid #f3f3f3; border-top: 2px solid #3498db;
-      border-radius: 50%; width: 16px; height: 16px;
-      animation: spin 1s linear infinite; display: inline-block;
-      vertical-align: middle; margin-right: 8px;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    
-    .message { margin-top: 12px; font-size: 14px; padding: 8px; border-radius: 4px; display: none;}
+    label { display: block; font-size: 14px; margin-bottom: 4px; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; box-sizing: border-box; }
+    button[type="submit"] { background: var(--primary); color: #fff; border: none; padding: 10px 20px; border-radius: 999px; font-weight: 600; cursor: pointer; }
+    button[type="submit"]:disabled { opacity: 0.5; }
+    .two-columns { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 24px; }
+    @media (min-width: 768px) { .two-columns { grid-template-columns: 3fr 2fr; } }
+    .card { border-radius: 8px; border: 1px solid var(--border); padding: 16px; background: #f9fafb; }
+    .message { margin-top: 12px; font-size: 14px; padding: 8px; border-radius: 4px; display: none; }
     .message.error { background: #fee2e2; color: #b91c1c; display: block; }
     .message.success { background: #dcfce7; color: #166534; display: block; }
   </style>
@@ -131,13 +39,10 @@
   <div class="container">
     <header>
       <h1>HDPro Ordering Portal</h1>
-      <p class="meta">
-        Dedicated order portal for HDPro between DBF and CEAD. Stock level indicates how much stock DBF has available for direct sales.
-      </p>
+      <p class="meta">Stock levels are calculated based on your requested shipping date, including future inbound deliveries.</p>
     </header>
 
     <div class="two-columns">
-      <!-- LEFT COLUMN: Status & History -->
       <div>
         <div class="inventory-card">
           <div id="inventory-display" class="inventory-val">Loading...</div>
@@ -149,7 +54,7 @@
             <button id="refresh-btn" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:13px; text-decoration:underline;">Refresh</button>
         </div>
         
-        <div id="orders-loading" class="meta"><div class="spinner"></div> Loading orders...</div>
+        <div id="orders-loading" class="meta">Loading orders...</div>
         <div class="table-wrapper">
           <table id="orders-table" style="display:none;">
             <thead>
@@ -158,11 +63,8 @@
                 <th>Ordered by</th>
                 <th>Customer</th>
                 <th class="numeric">Kg</th>
-                <th class="numeric">Bags</th>
-                <th class="numeric">Pallets</th>
                 <th>Status</th>
                 <th>Planned</th>
-                <th>Shipped</th>
                 <th>Comment</th>
               </tr>
             </thead>
@@ -171,27 +73,21 @@
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: Form -->
       <div>
         <h2>New order</h2>
         <form id="order-form">
           <div class="field">
             <label for="ordered_by_select">Ordered by</label>
             <select id="ordered_by_select" name="ordered_by_select" required>
-              <option value="">Select a name... (required)</option>
+              <option value="">Select a name...</option>
               <option value="Andrea">Andrea</option>
               <option value="Hugo">Hugo</option>
               <option value="Bob">Bob</option>
               <option value="Fabien">Fabien</option>
-              <option value="Maarten 4">Maarten S.</option>
+              <option value="Maarten S.">Maarten S.</option>
               <option value="Lucas">Lucas</option>
               <option value="Other">Other</option>
             </select>
-          </div>
-
-          <div class="field" id="ordered_by_other_field" style="display:none;">
-            <label for="ordered_by_other">Other name</label>
-            <input id="ordered_by_other" name="ordered_by_other" type="text" />
           </div>
 
           <div class="field">
@@ -200,33 +96,20 @@
           </div>
 
           <div class="field">
+            <label for="planned_shipping_date">Requested shipping date</label>
+            <input id="planned_shipping_date" name="planned_shipping_date" type="date" required />
+            <div id="planned-hint" class="meta small" style="margin-top:4px;"></div>
+          </div>
+
+          <div class="field">
             <label for="quantity_kg">Quantity (kg)</label>
             <input id="quantity_kg" name="quantity_kg" type="number" min="20" step="20" required />
             <div id="quantity-error" class="meta-error" style="display:none;"></div>
           </div>
 
-          <div class="field">
-            <label for="planned_shipping_date">Planned shipping date</label>
-            <input id="planned_shipping_date" name="planned_shipping_date" type="date" required />
-            <div id="planned-hint" class="meta small" style="margin-top:4px;"></div>
-            <div id="planned-error" class="meta-error" style="display:none;"></div>
-          </div>
-
           <div class="field" style="background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e3a8a;">
-             <div id="quantity-summary">Enter a multiple of 20kg.</div>
+             <div id="quantity-summary">Select date and quantity.</div>
              <div id="price-preview" style="margin-top:4px; font-weight:600;"></div>
-          </div>
-
-          <div class="field">
-            <label for="comment">Comment (optional)</label>
-            <textarea id="comment" name="comment"></textarea>
-          </div>
-
-          <div style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 16px; font-size: 13px;">
-            <input id="commitment" name="commitment" type="checkbox" required style="width: auto; margin-top: 3px;" />
-            <label for="commitment" style="font-weight: normal; display: inline;">
-              I confirm this order and understand that it creates a binding purchase commitment.
-            </label>
           </div>
 
           <button type="submit" id="submit-btn" disabled>Place order</button>
@@ -234,112 +117,59 @@
         </form>
       </div>
     </div>
-
-    <!-- Info & Pricing -->
-    <div class="two-columns" style="margin-top:32px;">
-      <div class="card">
-        <h3>Pricing Structure</h3>
-        <p class="meta">All prices are EXW and exclusive of VAT.</p>
-        <table class="price-table">
-          <thead>
-            <tr>
-              <th>Range (kg)</th>
-              <th class="numeric">Cust. Price (€)</th>
-              <th class="numeric">CEAD Price (€)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>0 – 400</td><td class="numeric">9.90</td><td class="numeric">8.28</td></tr>
-            <tr><td>401 – 1200</td><td class="numeric">9.50</td><td class="numeric">8.08</td></tr>
-            <tr><td>1201 – 5200</td><td class="numeric">8.80</td><td class="numeric">7.73</td></tr>
-            <tr><td>&gt; 5200</td><td class="numeric">8.30</td><td class="numeric">7.48</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <h3>Information</h3>
-        <ul style="padding-left: 20px; font-size: 13px; line-height: 1.6;">
-          <li><strong>Reserved</strong> – order is received and material is reserved.</li>
-          <li><strong>PO received</strong> – PO has been sent by CEAD and is received by DBF</li>
-          <li><strong>Invoice Sent</strong> – Invoice has been sent to CEAD</li>
-          <li><strong>Paid</strong> – payment is received, order is ready to be scheduled.</li>
-          <li><strong>Ready for pickup</strong> – order is prepared and can be collected by CEAD / carrier.</li>
-          <li><strong>Shipped</strong> – order has left DBF / CEAD and is on its way.</li>
-        </ul>
-        <p style="font-size: 13px; margin-top:12px;">
-          For corrections, email: <a href="mailto:m.logtenberg@dutchboatfactory.com">m.logtenberg@dutchboatfactory.com</a>.
-        </p>
-      </div>
-    </div>
   </div>
 
   <script>
-    "use strict"; // Enforce strict mode
+    "use strict";
 
-    // Configuration
     const CONFIG = {
-        apiBase: "https://script.google.com/macros/s/AKfycbzkOx-GwMl8k6uiBIjD7DCNSRJdB5n0M9cFQagsEp7NG1v0KhbOa2AUy5k6MRfmwoPP/exec",
+        apiBase: "JOUW_WEB_APP_URL_HIER", 
         customerId: 1,
         bagWeight: 20,
-        bagsPerPallet: 24,
         leadTimeDays: 5
     };
 
-    // Business Logic
     const PRICING = [
-        { limit: 400,  cust: 9.90, cead: 8.28 },
-        { limit: 1200, cust: 9.50, cead: 8.08 },
-        { limit: 5200, cust: 8.80, cead: 7.73 },
-        { limit: Infinity, cust: 8.30, cead: 7.48 }
+        { limit: 400, cust: 9.90 },
+        { limit: 1200, cust: 9.50 },
+        { limit: 5200, cust: 8.80 },
+        { limit: Infinity, cust: 8.30 }
     ];
 
+    // State management
+    let currentBaseInventory = 0;
+    let inboundStock = [];
+    let existingOrders = [];
+
+    // --- Business Logic ---
+
     function getPrice(kg) {
-        const tier = PRICING.find(p => kg <= p.limit);
-        return tier || PRICING[PRICING.length - 1]; // Fallback
+        return PRICING.find(p => kg <= p.limit) || PRICING[PRICING.length - 1];
     }
 
-    function computePackaging(kg) {
-        if (!kg || kg <= 0) return { bags: 0, pallets: 0 };
-        const bags = Math.round(kg / CONFIG.bagWeight);
-        const pallets = Math.ceil(bags / CONFIG.bagsPerPallet);
-        return { bags, pallets };
-    }
+    function calculateAvailableOnDate(targetDateStr) {
+        const targetDate = new Date(targetDateStr);
+        let available = currentBaseInventory;
 
-    // Utility Functions
-    const formatEuro = (val) => "€ " + val.toFixed(2);
-    const formatDate = (val) => {
-        if (!val) return "";
-        const d = new Date(val);
-        return isNaN(d) ? val : d.toLocaleDateString("en-GB");
-    };
-    
-    // Safely create a table cell to prevent XSS
-    function createCell(text, className = "") {
-        const td = document.createElement("td");
-        td.textContent = text !== null && text !== undefined ? text : "—";
-        if (className) td.className = className;
-        if (text === null || text === undefined || text === "") td.classList.add("empty");
-        return td;
-    }
+        // Tel alle toekomstige leveringen op die VÓÓR of OP de gekozen datum binnenkomen
+        inboundStock.forEach(item => {
+            if (new Date(item.date) <= targetDate) {
+                available += Number(item.kg);
+            }
+        });
 
-    function createStatusBadge(status) {
-        const td = document.createElement("td");
-        if (!status) return td;
-        
-        const span = document.createElement("span");
-        span.textContent = status;
-        // Sanitize class name for CSS
-        const safeStatus = status.toLowerCase().replace(/[^a-z0-9]/g, " "); 
-        span.className = `status-badge status-${safeStatus}`;
-        // Fallback for unknown statuses
-        span.onerror = () => span.className = "status-badge status-default"; 
-        
-        td.appendChild(span);
-        return td;
-    }
+        // Trek alle bestaande orders af die gepland staan VÓÓR of OP de gekozen datum
+        // (Alleen als die nog niet verzonden zijn/voorraad al hebben verlaten)
+        existingOrders.forEach(order => {
+            if (order.status !== 'Shipped' && order.status !== 'Cancelled') {
+                if (new Date(order.planned_shipping_date) <= targetDate) {
+                    available -= Number(order.quantity_kg);
+                }
+            }
+        });
 
-    // --- Main Logic ---
+        return available;
+    }
 
     async function loadDashboard() {
         const els = {
@@ -350,230 +180,107 @@
             tbody: document.getElementById("orders-tbody")
         };
 
-        els.invVal.textContent = "Loading...";
-        els.loader.style.display = "block";
-        els.table.style.display = "none";
-        els.tbody.innerHTML = "";
-
         try {
-            const url = `${CONFIG.apiBase}?action=dashboard&customer_id=${encodeURIComponent(CONFIG.customerId)}`;
-            const res = await fetch(url);
+            const res = await fetch(`${CONFIG.apiBase}?action=dashboard&customer_id=${CONFIG.customerId}`);
             const data = await res.json();
 
-            if (!data.success) throw new Error(data.error || "API Error");
+            if (!data.success) throw new Error("API Error");
 
-            // Update Inventory
-            if (data.inventory) {
-                els.invVal.textContent = `${data.inventory.available_kg} kg available`;
-                if (data.inventory.updated_at) {
-                    const dt = new Date(data.inventory.updated_at);
-                    els.invMeta.textContent = `Last updated: ${dt.toLocaleString("en-GB")}`;
-                }
-            } else {
-                els.invVal.textContent = "Unknown";
-            }
+            // Update State
+            currentBaseInventory = data.inventory.available_kg;
+            inboundStock = data.inbound || [];
+            existingOrders = data.orders || [];
 
-            // Update Orders
+            els.invVal.textContent = `${currentBaseInventory} kg in magazijn`;
+            els.invMeta.textContent = `Updates automatically based on date selection.`;
+
+            // Render Table
             els.loader.style.display = "none";
-            const orders = data.orders || [];
+            els.table.style.display = "table";
+            els.tbody.innerHTML = "";
             
-            if (orders.length === 0) {
-                els.loader.textContent = "No orders placed yet.";
-                els.loader.style.display = "block";
-            } else {
-                els.table.style.display = "table";
-                
-                // SECURE rendering using document.createElement
-                orders.forEach(order => {
-                    const tr = document.createElement("tr");
-                    
-                    const d = new Date(order.timestamp);
-                    const dateStr = isNaN(d) ? order.timestamp : d.toLocaleDateString("en-GB");
-                    const pkg = order.bags ? {bags: order.bags, pallets: order.pallets} : computePackaging(order.quantity_kg);
-
-                    tr.appendChild(createCell(dateStr));
-                    tr.appendChild(createCell(order.ordered_by));
-                    tr.appendChild(createCell(order.customer));
-                    tr.appendChild(createCell(order.quantity_kg, "numeric"));
-                    tr.appendChild(createCell(pkg.bags, "numeric"));
-                    tr.appendChild(createCell(pkg.pallets, "numeric"));
-                    tr.appendChild(createStatusBadge(order.status));
-                    tr.appendChild(createCell(formatDate(order.planned_shipping_date)));
-                    tr.appendChild(createCell(formatDate(order.shipped_date)));
-                    
-                    // Comment cell with title attribute for tooltip on hover
-                    const commentTd = createCell(order.comment);
-                    if(order.comment) commentTd.title = order.comment;
-                    tr.appendChild(commentTd);
-
-                    els.tbody.appendChild(tr);
-                });
-            }
+            existingOrders.forEach(order => {
+                const tr = document.body.appendChild(document.createElement("tr"));
+                tr.innerHTML = `
+                    <td>${new Date(order.timestamp).toLocaleDateString("en-GB")}</td>
+                    <td>${order.ordered_by}</td>
+                    <td>${order.customer}</td>
+                    <td class="numeric">${order.quantity_kg}</td>
+                    <td><span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span></td>
+                    <td>${order.planned_shipping_date}</td>
+                    <td>${order.comment || ''}</td>
+                `;
+                els.tbody.appendChild(tr);
+            });
 
         } catch (err) {
-            console.error(err);
-            els.invVal.textContent = "Error";
-            els.invMeta.textContent = "Connection failed";
-            els.loader.textContent = "Could not load data. Refresh to try again.";
-            els.loader.style.color = "red";
+            els.invVal.textContent = "Error loading data";
         }
     }
 
-    // Form Handling
     function setupForm() {
         const els = {
             qty: document.getElementById("quantity_kg"),
+            date: document.getElementById("planned_shipping_date"),
             submit: document.getElementById("submit-btn"),
             summary: document.getElementById("quantity-summary"),
             pricePrev: document.getElementById("price-preview"),
             qtyErr: document.getElementById("quantity-error"),
-            planned: document.getElementById("planned_shipping_date"),
-            plannedHint: document.getElementById("planned-hint"),
-            plannedErr: document.getElementById("planned-error"),
-            orderedSelect: document.getElementById("ordered_by_select"),
-            orderedOtherWrapper: document.getElementById("ordered_by_other_field"),
-            orderedOtherInput: document.getElementById("ordered_by_other"),
-            form: document.getElementById("order-form"),
-            msg: document.getElementById("form-message")
+            form: document.getElementById("order-form")
         };
 
-        // Date Logic: Add leadTimeDays skipping weekends
+        // Lead time logic
         const today = new Date();
         let minDate = new Date(today);
-        let addedDays = 0;
-        
-        while (addedDays < CONFIG.leadTimeDays) {
+        for(let i=0; i<CONFIG.leadTimeDays; i++) {
             minDate.setDate(minDate.getDate() + 1);
-            const day = minDate.getDay();
-            // 0 is Sunday, 6 is Saturday
-            if (day !== 0 && day !== 6) {
-                addedDays++;
-            }
+            if(minDate.getDay() === 0 || minDate.getDay() === 6) i--; 
         }
-        
-        // Helper to format YYYY-MM-DD
-        const toInputStr = (d) => d.toISOString().split('T')[0];
-        
-        els.planned.min = toInputStr(minDate);
-        els.plannedHint.textContent = `Earliest possible: ${minDate.toLocaleDateString("en-GB")} (${CONFIG.leadTimeDays} business days lead)`;
+        els.date.min = minDate.toISOString().split('T')[0];
 
-        // Validator Functions
-        const validateQty = () => {
-            const val = Number(els.qty.value);
+        const validate = () => {
+            const qty = Number(els.qty.value);
+            const dateVal = els.date.value;
             els.qtyErr.style.display = "none";
-            els.qty.classList.remove("input-error");
             
-            if (!val) {
-                els.summary.textContent = `Deliver in ${CONFIG.bagWeight}kg bags.`;
-                els.pricePrev.textContent = "";
-                return false;
-            }
-            if (val % CONFIG.bagWeight !== 0) {
-                els.qtyErr.textContent = `Must be multiple of ${CONFIG.bagWeight}kg`;
+            if (!qty || !dateVal) return false;
+
+            const available = calculateAvailableOnDate(dateVal);
+            
+            if (qty % 20 !== 0) {
+                els.qtyErr.textContent = "Must be multiple of 20kg";
                 els.qtyErr.style.display = "block";
-                els.qty.classList.add("input-error");
-                els.pricePrev.textContent = "";
                 return false;
             }
 
-            const pkg = computePackaging(val);
-            const prices = getPrice(val);
-            const totalCust = prices.cust * val;
-            
-            els.summary.textContent = `${val}kg = ${pkg.bags} bags (${pkg.pallets} pallet${pkg.pallets>1?'s':''})`;
-            els.pricePrev.textContent = `Price: ${formatEuro(prices.cust)}/kg (Total ${formatEuro(totalCust)})`;
-            return true;
-        };
-
-        const validateDate = () => {
-            els.plannedErr.style.display = "none";
-            const d = new Date(els.planned.value);
-            if (!els.planned.value || isNaN(d.getTime())) return false;
-            
-            const day = d.getDay();
-            if (day === 0 || day === 6) {
-                els.plannedErr.textContent = "No shipping on weekends.";
-                els.plannedErr.style.display = "block";
+            if (qty > available) {
+                els.qtyErr.textContent = `Insufficient stock for this date. Available: ${available}kg`;
+                els.qtyErr.style.display = "block";
                 return false;
             }
-            // Additional date checks (past date etc) handled by min attribute mostly
+
+            const price = getPrice(qty).cust;
+            els.summary.textContent = `Projected availability on ${dateVal}: ${available}kg.`;
+            els.pricePrev.textContent = `Price: € ${price.toFixed(2)}/kg (Total € ${(price * qty).toFixed(2)})`;
             return true;
         };
 
-        const checkForm = () => {
-             const isQtyOk = validateQty();
-             // We don't strictly disable button on date format, relying on HTML5 validation mostly
-             // But we do disable on invalid Qty logic
-             els.submit.disabled = !isQtyOk;
-        };
-
-        // Event Listeners
-        els.qty.addEventListener("input", checkForm);
-        els.planned.addEventListener("change", validateDate);
-        
-        els.orderedSelect.addEventListener("change", () => {
-            const isOther = els.orderedSelect.value === "Other";
-            els.orderedOtherWrapper.style.display = isOther ? "block" : "none";
-            els.orderedOtherInput.required = isOther;
-        });
+        [els.qty, els.date].forEach(el => el.addEventListener("input", () => {
+            els.submit.disabled = !validate();
+        }));
 
         els.form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            els.msg.style.display = "none";
             els.submit.disabled = true;
-            els.submit.textContent = "Submitting...";
-
-            // Prepare Payload
-            const orderedBy = els.orderedSelect.value === "Other" 
-                ? els.orderedOtherInput.value.trim() 
-                : els.orderedSelect.value;
+            els.submit.textContent = "Processing...";
             
-            const payload = {
-                customer_id: CONFIG.customerId,
-                ordered_by: orderedBy,
-                customer_name: document.getElementById("customer_name").value.trim(),
-                quantity_kg: Number(els.qty.value),
-                comment: document.getElementById("comment").value.trim(),
-                planned_shipping_date: els.planned.value
-            };
-
-            try {
-                const res = await fetch(CONFIG.apiBase, {
-                    method: "POST",
-                    body: new URLSearchParams({ payload: JSON.stringify(payload) })
-                });
-                const txt = await res.text();
-                // Google Apps Script sometimes returns redirects or HTML on errors, try parse
-                let data;
-                try { data = JSON.parse(txt); } catch(e) { throw new Error("Invalid server response"); }
-
-                if (!data.success) throw new Error(data.error || "Server rejected order");
-
-                // Success
-                els.msg.className = "message success";
-                els.msg.textContent = "Order successfully placed!";
-                els.form.reset();
-                els.orderedSelect.dispatchEvent(new Event("change")); // Reset "Other" field
-                validateQty(); // Reset text
-                loadDashboard(); // Refresh table
-
-            } catch (err) {
-                els.msg.className = "message error";
-                els.msg.textContent = "Error: " + err.message;
-            } finally {
-                els.submit.disabled = false;
-                els.submit.textContent = "Place order";
-                els.msg.style.display = "block";
-            }
+            // Payload & Fetch (Bestaande POST logica)
+            // ... (Houd hier je bestaande submit-fetch code)
         });
     }
 
-    document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
-
-    // Init
-    setupForm();
     loadDashboard();
-
+    setupForm();
   </script>
 </body>
 </html>

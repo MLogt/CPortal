@@ -61,10 +61,99 @@ function getDashboard() {
   const stockTimeline = getStockTimeline();
   const orders = getOrders();
 
+  // Calculate fulfillment info for each order
+  const ordersWithFulfillment = orders.map(order => {
+    const fulfillment = calculateOrderFulfillment(order, stockTimeline, orders);
+    return {
+      ...order,
+      can_fulfill_on_planned: fulfillment.canFulfillOnPlanned,
+      earliest_fulfillment_date: fulfillment.earliestDate,
+      delay_days: fulfillment.delayDays
+    };
+  });
+
   return {
     success: true,
     stock_timeline: stockTimeline,
-    orders: orders
+    orders: ordersWithFulfillment
+  };
+}
+
+// Calculate when an order can actually be fulfilled
+function calculateOrderFulfillment(order, stockTimeline, allOrders) {
+  const status = order.status.toLowerCase();
+
+  // Already completed orders - no fulfillment calculation needed
+  if (status === 'shipped' || status === 'delivered' || status === 'cancelled') {
+    return {
+      canFulfillOnPlanned: true,
+      earliestDate: order.planned_shipping_date,
+      delayDays: 0
+    };
+  }
+
+  if (!order.planned_shipping_date) {
+    return {
+      canFulfillOnPlanned: false,
+      earliestDate: null,
+      delayDays: null
+    };
+  }
+
+  const plannedDate = new Date(order.planned_shipping_date);
+  const stockPeriods = buildStockPeriods(stockTimeline, allOrders);
+
+  // Find which period the planned date falls into
+  let canFulfillOnPlanned = false;
+
+  for (const period of stockPeriods) {
+    const periodStart = new Date(period.startDate);
+    const periodEnd = period.endDate ? new Date(period.endDate) : null;
+
+    // Check if planned date is in this period
+    if (plannedDate >= periodStart && (!periodEnd || plannedDate < periodEnd)) {
+      // Check if there's enough free stock in this period
+      if (period.freeStock >= order.quantity_kg) {
+        canFulfillOnPlanned = true;
+      }
+      break;
+    }
+  }
+
+  if (canFulfillOnPlanned) {
+    return {
+      canFulfillOnPlanned: true,
+      earliestDate: order.planned_shipping_date,
+      delayDays: 0
+    };
+  }
+
+  // Find earliest period where this order can be fulfilled
+  for (const period of stockPeriods) {
+    if (period.freeStock >= order.quantity_kg) {
+      const periodStart = new Date(period.startDate);
+
+      // Find first weekday in this period
+      let earliestDate = new Date(periodStart);
+      while (earliestDate.getDay() === 0 || earliestDate.getDay() === 6) {
+        earliestDate.setDate(earliestDate.getDate() + 1);
+      }
+
+      const delayDays = Math.ceil((earliestDate - plannedDate) / (1000 * 60 * 60 * 24));
+
+      return {
+        canFulfillOnPlanned: false,
+        earliestDate: Utilities.formatDate(earliestDate, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+        delayDays: delayDays > 0 ? delayDays : 0
+      };
+    }
+  }
+
+  // Cannot fulfill at all
+  return {
+    canFulfillOnPlanned: false,
+    earliestDate: null,
+    delayDays: null
   };
 }
 
@@ -181,50 +270,110 @@ function findFirstAvailableDate(requestedKg) {
   const stockTimeline = getStockTimeline();
   const orders = getOrders();
 
-  // Build cumulative stock map by date
-  const stockByDate = buildCumulativeStockMap(stockTimeline, orders);
-
   // Find minimum date (today + 5 business days)
   const minDate = getMinimumOrderDate();
 
-  // Get all dates from the stock map, sorted
-  const allDates = Object.keys(stockByDate).sort();
+  // Build stock periods: each period starts at an incoming date and has a stock pool
+  const stockPeriods = buildStockPeriods(stockTimeline, orders);
 
-  // Also generate dates from minDate forward (in case stock is available before any timeline entry)
-  const checkDates = generateDateRange(minDate, 365); // Check up to 1 year ahead
+  // Check each period to find where the new order fits
+  for (const period of stockPeriods) {
+    // Skip periods that end before minDate
+    if (period.endDate && new Date(period.endDate) < minDate) continue;
 
-  // Merge and deduplicate dates
-  const datesToCheck = [...new Set([...allDates, ...checkDates])].sort();
+    // Calculate free stock in this period (pool - committed orders)
+    const freeStock = period.stockPool - period.committedOrders;
 
-  for (const dateStr of datesToCheck) {
-    const checkDate = new Date(dateStr);
+    if (freeStock >= requestedKg) {
+      // Find first valid delivery date in this period
+      const startDate = new Date(Math.max(new Date(period.startDate), minDate));
+      const endDate = period.endDate ? new Date(period.endDate) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
-    // Must be >= minimum date
-    if (checkDate < minDate) continue;
-
-    // Must be a weekday
-    const dayOfWeek = checkDate.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
-    // Calculate available stock on this date
-    const availableKg = calculateAvailableOnDate(dateStr, stockTimeline, orders);
-
-    if (availableKg >= requestedKg) {
-      return {
-        date: dateStr,
-        available_kg: availableKg,
-        message: null
-      };
+      // Find first weekday >= startDate
+      let deliveryDate = new Date(startDate);
+      while (deliveryDate <= endDate) {
+        const dayOfWeek = deliveryDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          // Also must be >= minDate
+          if (deliveryDate >= minDate) {
+            return {
+              date: Utilities.formatDate(deliveryDate, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+              available_kg: freeStock,
+              message: null
+            };
+          }
+        }
+        deliveryDate.setDate(deliveryDate.getDate() + 1);
+      }
     }
   }
 
   // No date found with sufficient stock
-  const maxAvailable = getMaxAvailableStock(stockTimeline, orders);
+  const maxFree = getMaxFreeStock(stockPeriods);
   return {
     date: null,
-    available_kg: maxAvailable,
-    message: `Insufficient stock. Maximum available: ${maxAvailable}kg`
+    available_kg: maxFree,
+    message: `Insufficient stock. Maximum available for new orders: ${maxFree}kg`
   };
+}
+
+// Build stock periods: each period has a cumulative stock pool and cumulative committed orders
+function buildStockPeriods(stockTimeline, orders) {
+  const periods = [];
+
+  // Sort timeline by date
+  const sortedTimeline = [...stockTimeline].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  for (let i = 0; i < sortedTimeline.length; i++) {
+    const entry = sortedTimeline[i];
+    const nextEntry = sortedTimeline[i + 1];
+
+    const periodStart = entry.date;
+    const periodEnd = nextEntry ? nextEntry.date : null;
+
+    // Calculate cumulative stock up to and including this entry
+    let stockPool = 0;
+    for (let j = 0; j <= i; j++) {
+      stockPool += sortedTimeline[j].incoming_kg;
+    }
+
+    // Calculate cumulative committed orders up to the END of this period
+    // An order consumes from the stock pool if its planned date is before the next incoming
+    let committedOrders = 0;
+    orders.forEach(order => {
+      const status = order.status.toLowerCase();
+      if (status === 'shipped' || status === 'delivered' || status === 'cancelled') return;
+
+      if (order.planned_shipping_date) {
+        const plannedDate = new Date(order.planned_shipping_date);
+        const periodEndDate = periodEnd ? new Date(periodEnd) : null;
+
+        // Order consumes from this pool if planned before next incoming (or no next incoming)
+        if (!periodEndDate || plannedDate < periodEndDate) {
+          committedOrders += order.quantity_kg;
+        }
+      }
+    });
+
+    periods.push({
+      startDate: periodStart,
+      endDate: periodEnd,
+      stockPool: stockPool,
+      committedOrders: committedOrders,
+      freeStock: stockPool - committedOrders
+    });
+  }
+
+  return periods;
+}
+
+function getMaxFreeStock(stockPeriods) {
+  let maxFree = 0;
+  stockPeriods.forEach(period => {
+    const free = period.stockPool - period.committedOrders;
+    if (free > maxFree) maxFree = free;
+  });
+  return maxFree;
 }
 
 function buildCumulativeStockMap(stockTimeline, orders) {

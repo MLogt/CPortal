@@ -102,6 +102,25 @@
     .chip-jan { background: #0284c7; color: white; }
     .chip-negative { background: #dc2626; color: white; font-weight: 700; }
 
+    /* Order delay warning */
+    .order-delay {
+      font-size: 11px;
+      color: #dc2626;
+      font-weight: 600;
+    }
+    .order-delayed-row {
+      border-left: 4px solid #dc2626;
+    }
+    .fulfillment-info {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .fulfillment-warning {
+      color: #dc2626;
+      font-weight: 500;
+    }
+
     /* --- Tables --- */
     .table-wrapper { width: 100%; overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
     table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
@@ -223,6 +242,7 @@
                 <th class="numeric">Kg</th>
                 <th>Status</th>
                 <th>Planned</th>
+                <th>Fulfillment</th>
                 <th>Comment</th>
               </tr>
             </thead>
@@ -574,6 +594,29 @@
                 const rowClass = getOrderMonthClass(order);
                 if (rowClass) tr.className = rowClass;
 
+                // Add delayed row indicator
+                if (order.delay_days && order.delay_days > 0) {
+                    tr.classList.add('order-delayed-row');
+                }
+
+                // Build fulfillment cell
+                let fulfillmentHtml = '';
+                const status = order.status.toLowerCase();
+                if (status === 'shipped' || status === 'delivered' || status === 'cancelled') {
+                    fulfillmentHtml = '<span style="color:#6b7280">-</span>';
+                } else if (order.can_fulfill_on_planned) {
+                    fulfillmentHtml = '<span style="color:#16a34a">✓ On time</span>';
+                } else if (order.earliest_fulfillment_date) {
+                    const delayWeeks = Math.ceil(order.delay_days / 7);
+                    const earliestDate = new Date(order.earliest_fulfillment_date).toLocaleDateString("en-GB");
+                    fulfillmentHtml = `
+                        <div class="fulfillment-warning">⚠ +${order.delay_days} days</div>
+                        <div class="fulfillment-info">Earliest: ${earliestDate}</div>
+                    `;
+                } else {
+                    fulfillmentHtml = '<span class="fulfillment-warning">⚠ No stock</span>';
+                }
+
                 tr.innerHTML = `
                     <td>${isNaN(d) ? order.timestamp : d.toLocaleDateString("en-GB")}</td>
                     <td>${order.ordered_by}</td>
@@ -581,6 +624,7 @@
                     <td class="numeric">${order.quantity_kg}</td>
                     <td><span class="status-badge status-${order.status.toLowerCase().replace(/ /g, '-')}">${order.status}</span></td>
                     <td>${order.planned_shipping_date ? new Date(order.planned_shipping_date).toLocaleDateString("en-GB") : '-'}</td>
+                    <td>${fulfillmentHtml}</td>
                     <td>${order.comment || ''}</td>
                 `;
                 els.tbody.appendChild(tr);

@@ -1,89 +1,147 @@
 # CPortal - HDPro Ordering Portal
 
 ## Project Overview
-A web-based ordering portal for HDPro stock management, connected to Google Sheets via Google Apps Script.
+A web-based ordering portal for HDPro stock management, connected to Supabase for fast database access.
 
 ## Architecture
 
 ### Frontend
 - **`index.html`** - Single-page application hosted on GitHub Pages
 - Vanilla JavaScript, no frameworks
-- Communicates with Google Apps Script API
+- Communicates directly with Supabase REST API
 
 ### Backend
-- **`Code.gs`** - Google Apps Script (paste into Google Sheets > Extensions > Apps Script)
-- Deployed as web app
+- **Supabase** - PostgreSQL database with REST API
+- Tables: `stock_levels`, `orders`
+- Row Level Security enabled with public access policies
 
-### Google Sheets Structure
-1. **StockLevels** sheet:
-   | Date | Incoming KG | Description |
-   |------|-------------|-------------|
-   | 01-01-2026 | 6000 | Initial stock |
-   | 16-03-2026 | 2000 | Batch delivery |
+### Legacy (deprecated)
+- **`Code.gs`** - Google Apps Script (no longer used, kept for reference)
+- **`index_supabase.html`** - Development version (same as index.html)
 
-2. **Orders** sheet (existing structure with headers):
-   - id, timestamp, customer_id, customer, ordered_by, quantity_kg, status, comment, planned_shipping_date, etc.
+## Database Schema
+
+### stock_levels table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| date | DATE | Date of stock arrival |
+| incoming_kg | INTEGER | Amount of stock in kg |
+| description | TEXT | Optional description |
+| created_at | TIMESTAMPTZ | Auto-generated |
+
+### orders table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| timestamp | TIMESTAMPTZ | Order creation time |
+| customer_id | INTEGER | Customer identifier |
+| customer | TEXT | Customer name |
+| ordered_by | TEXT | Person who placed order |
+| quantity_kg | INTEGER | Order quantity |
+| status | TEXT | Order status |
+| comment | TEXT | Optional notes |
+| planned_shipping_date | DATE | Requested delivery date |
+| customer_unit_price | NUMERIC | Price per kg for customer |
+| cead_unit_price | NUMERIC | CEAD internal price per kg |
+| created_at | TIMESTAMPTZ | Auto-generated |
 
 ## Current Features
 
 ### Stock Management
-- [x] Single StockLevels sheet (replaces old Inventory + Inbound)
-- [x] Cumulative stock calculation per period
-- [x] "X kg beschikbaar voor directe levering" - shows free stock after all pending orders
-- [x] Monthly forecast chips showing stock per month
-- [x] Negative stock shown in red with warning
+- Single StockLevels table for incoming stock deliveries
+- Cumulative stock calculation per delivery date
+- "X kg beschikbaar voor directe levering" - shows free stock for immediate orders
+- Monthly stock chart showing:
+  - Blue/Red bars: "Gevraagd schema" (requested schedule, can be negative)
+  - Green bars: "Met vertragingen" (with delays, never negative)
+- Zero line showing stock depletion point
+
+### Order Fulfillment Logic
+- **First-come-first-served**: Orders sorted by planned date
+- **Sequential processing**: Each order checks stock availability considering only earlier orders
+- For each order, calculates:
+  - Stock available at planned date
+  - Stock consumed by orders planned before this one
+  - If `available >= order quantity` → On time
+  - If not → Find first stock delivery date with enough remaining stock
 
 ### Order Display
-- [x] Color-coded order rows:
+- Color-coded order rows:
   - **Gray**: Shipped/delivered orders
-  - **Green**: Orders fulfillable from current stock (before next incoming)
+  - **Green**: Orders fulfillable from current stock
   - **Month colors**: Future orders by planned month
-- [x] Red left border on delayed orders
-- [x] Fulfillment column showing:
+- Red left border on delayed orders
+- Fulfillment column showing:
   - ✓ On time
   - ⚠ +X days, Earliest: [date]
   - ⚠ No stock
 
 ### Order Placement
-- [x] Quantity input triggers availability check
-- [x] Auto-calculates earliest delivery date
-- [x] Date picker defaults to earliest available
-- [x] Confirmation modal before submission
-- [x] Validates stock availability on selected date
+- Quantity input triggers availability check
+- Auto-calculates earliest delivery date
+- Date picker defaults to earliest available
+- Confirmation modal before submission
+- Dual pricing display:
+  - Customer price (tiered pricing)
+  - CEAD price: `(customer_price - 6.66) / 2 + 6.66`
 
-## API Endpoints
+### Pricing Tiers
+| Quantity | Customer Price |
+|----------|---------------|
+| ≤ 400 kg | €9.90/kg |
+| ≤ 1200 kg | €9.50/kg |
+| ≤ 5200 kg | €8.80/kg |
+| > 5200 kg | €8.30/kg |
 
-### GET
-- `?action=dashboard` - Returns stock_timeline + orders with fulfillment info
-- `?action=check_availability&quantity_kg=X` - Returns first available date for X kg
+## Configuration
 
-### POST
-- Creates new order with validation
+### Supabase Connection (`index.html`)
+```javascript
+const SUPABASE_URL = 'https://vclhlfkekfixctkixsnt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGci...';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+```
 
-## Current Status
+### App Settings
+```javascript
+const CONFIG = {
+    customerId: 1,
+    bagWeight: 20,
+    bagsPerPallet: 24,
+    leadTimeDays: 5  // Minimum business days before delivery
+};
+```
 
-### Working
-- Stock period calculation (cumulative stock pools)
-- Availability check for new orders
-- Order fulfillment calculation per line
-- Color coding based on fulfillment status
-- Monthly stock forecast display
+## Stock Calculation Logic
 
-### Known Issues / TODO
+### Fulfillment Algorithm
+```
+function calculateOrderFulfillment(order):
+    1. Get all pending orders sorted by planned_date
+    2. For orders planned BEFORE this order:
+       - Sum their quantities as stockConsumedBefore
+    3. stockAtPlanned = cumulative stock up to order's planned date
+    4. availableForThisOrder = stockAtPlanned - stockConsumedBefore
+    5. If availableForThisOrder >= order.quantity:
+       - Return: can fulfill on planned date
+    6. Else:
+       - Check each future stock delivery date
+       - Find first date where available >= order.quantity
+       - Return: earliest fulfillment date with delay days
+```
 
-1. **Fulfillment calculation edge case**:
-   - Currently checks if `freeStock >= 0` for the period
-   - Need to verify this works correctly for all scenarios
-
-2. **Update Apps Script**:
-   - User needs to copy latest Code.gs to Google Apps Script
-   - Deploy new version after each backend change
-
-3. **Potential improvements**:
-   - [ ] Add "cancelled" to stock calculation exclusions (currently only shipped/delivered)
-   - [ ] Show which orders are blocking stock (causing delays)
-   - [ ] Allow partial order fulfillment suggestions
-   - [ ] Email notifications for stock warnings
+### New Order Availability
+```
+function findFirstAvailableDate(requestedKg):
+    1. totalCommitted = sum of all pending order quantities
+    2. For each stock delivery date (sorted):
+       - cumulativeStock += delivery amount
+       - available = cumulativeStock - totalCommitted
+       - If available >= requestedKg:
+         - Return this date (adjusted for weekday + lead time)
+    3. Return: insufficient stock message
+```
 
 ## Deployment
 
@@ -93,47 +151,38 @@ git add -A && git commit -m "message" && git push
 ```
 Auto-deploys to GitHub Pages.
 
-### Backend (Google Apps Script)
-1. Open Google Sheet > Extensions > Apps Script
-2. Replace all code with contents of `Code.gs`
-3. Save (Ctrl+S)
-4. Deploy > Manage deployments > Edit (pencil) > New version > Deploy
+### Database (Supabase)
+- Access via Supabase Dashboard: https://supabase.com/dashboard
+- Edit stock_levels and orders tables directly in Table Editor
+- SQL Editor available for complex queries
 
-## Configuration
+## Files
 
-### Frontend (`index.html`)
-```javascript
-const CONFIG = {
-    apiBase: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec",
-    customerId: 1,
-    leadTimeDays: 5
-};
+| File | Purpose |
+|------|---------|
+| `index.html` | Live production frontend |
+| `index_supabase.html` | Development copy |
+| `supabase_schema.sql` | Database schema for reference |
+| `Code.gs` | Legacy Google Apps Script |
+| `claude.md` | This documentation |
+
+## Known Limitations / Future Improvements
+
+1. **No authentication**: Anyone with the URL can place orders
+2. **No order editing**: Orders can only be edited via Supabase dashboard
+3. **Status changes**: Must be done manually in Supabase
+4. **Stock deletions**: Use Supabase dashboard for any deletions
+
+## Troubleshooting
+
+### "duplicate key value violates unique constraint"
+Run in Supabase SQL Editor:
+```sql
+SELECT setval('orders_id_seq', (SELECT MAX(id) FROM orders));
 ```
 
-### Backend (`Code.gs`)
-```javascript
-const CONFIG = {
-  STOCK_LEVELS_SHEET: "StockLevels",
-  ORDERS_SHEET: "Orders",
-  LEAD_TIME_DAYS: 5
-};
-```
-
-## Stock Calculation Logic
-
-### Period-based Stock Pools
-Each incoming delivery creates a new "period":
-- Period 1: Initial stock until next delivery
-- Period 2: Initial + delivery 1 until next delivery
-- etc.
-
-### Free Stock Calculation
-```
-freeStock = stockPool - committedOrders
-```
-Where committedOrders = all pending orders (not shipped/delivered) with planned_date before next incoming.
-
-### Order Fulfillment Check
-1. Find which period the order's planned date falls into
-2. If `period.freeStock >= 0` → Order can be fulfilled on time
-3. If `period.freeStock < 0` → Find first period where `freeStock >= 0` → That's the earliest delivery date
+### Orders not loading
+Check browser console for Supabase connection errors. Verify:
+- SUPABASE_URL is correct
+- SUPABASE_ANON_KEY is valid
+- RLS policies allow public access

@@ -503,7 +503,7 @@
         const ceadPrice = (customerPrice - 6.66) / 2 + 6.66;
         return {
             customer: customerPrice,
-            cead: Math.round(ceadPrice * 100) / 100
+            cead: Math.round(ceadPrice * 100) / 100 // Round to 2 decimals
         };
     }
 
@@ -619,20 +619,24 @@
         return forecast;
     }
 
+    // Calculate stock with delays (orders shifted to when they can actually be fulfilled)
     function calculateStockWithDelays(monthEndDate) {
         const targetDate = new Date(monthEndDate);
         let available = 0;
 
+        // Add all incoming stock up to target date
         stockTimeline.forEach(entry => {
             if (new Date(entry.date) <= targetDate) {
                 available += entry.incoming_kg;
             }
         });
 
+        // Subtract orders based on their ACTUAL fulfillment date (not planned)
         existingOrders.forEach(order => {
             const status = order.status.toLowerCase();
             if (status === 'shipped' || status === 'delivered' || status === 'cancelled') return;
 
+            // Calculate when this order can actually be fulfilled
             const fulfillment = calculateOrderFulfillment(order);
             const actualDate = fulfillment.earliestDate ? new Date(fulfillment.earliestDate) :
                               (order.planned_shipping_date ? new Date(order.planned_shipping_date) : null);
@@ -642,7 +646,7 @@
             }
         });
 
-        return Math.max(0, available);
+        return Math.max(0, available); // Never below 0 with delays
     }
 
     function getMonthlyStockWithDelays() {
@@ -671,6 +675,7 @@
     function renderStockChart(forecast) {
         const chart = document.getElementById('stock-chart');
 
+        // Find max and min values for scaling
         let maxVal = 0;
         let minVal = 0;
         forecast.forEach(m => {
@@ -678,30 +683,38 @@
             minVal = Math.min(minVal, m.requested);
         });
 
+        // Add padding (20% extra)
         maxVal = Math.max(maxVal * 1.2, 1000);
         minVal = Math.min(minVal * 1.2, 0);
 
         const totalRange = maxVal - minVal;
         const chartHeight = 160;
+
+        // Calculate where zero line should be (from bottom of bars area)
         const zeroFromBottom = totalRange > 0 ? (Math.abs(minVal) / totalRange) * chartHeight : 0;
 
         chart.innerHTML = '';
 
+        // Create bars area container
         const barsArea = document.createElement('div');
         barsArea.className = 'stock-chart-bars-area';
 
+        // Add zero line inside the bars area
         const zeroLine = document.createElement('div');
         zeroLine.className = 'stock-chart-zero-line';
         zeroLine.style.bottom = `${zeroFromBottom}px`;
         barsArea.appendChild(zeroLine);
 
+        // Create labels container
         const labelsArea = document.createElement('div');
         labelsArea.className = 'stock-chart-labels';
 
         forecast.forEach(m => {
+            // Month column for bars
             const monthDiv = document.createElement('div');
             monthDiv.className = 'chart-month';
 
+            // Requested bar (can be negative)
             const requestedBar = document.createElement('div');
             requestedBar.className = 'chart-bar chart-bar-requested';
 
@@ -709,16 +722,19 @@
                 requestedBar.classList.add('negative');
                 const height = totalRange > 0 ? (Math.abs(m.requested) / totalRange) * chartHeight : 0;
                 requestedBar.style.height = `${Math.max(height, 4)}px`;
+                // Negative bar: starts at zero and goes DOWN
                 requestedBar.style.bottom = `${zeroFromBottom - height}px`;
                 requestedBar.innerHTML = `<span class="chart-value negative">${m.requested}</span>`;
             } else {
                 const height = totalRange > 0 ? (m.requested / totalRange) * chartHeight : 0;
                 requestedBar.style.height = `${Math.max(height, 4)}px`;
+                // Positive bar: starts at zero and goes UP
                 requestedBar.style.bottom = `${zeroFromBottom}px`;
                 requestedBar.innerHTML = `<span class="chart-value">${m.requested}</span>`;
             }
             monthDiv.appendChild(requestedBar);
 
+            // Actual bar (with delays, never negative)
             const actualBar = document.createElement('div');
             actualBar.className = 'chart-bar chart-bar-actual';
             const actualHeight = totalRange > 0 ? (m.withDelays / totalRange) * chartHeight : 0;
@@ -729,6 +745,7 @@
 
             barsArea.appendChild(monthDiv);
 
+            // Label for this month
             const label = document.createElement('div');
             label.className = 'chart-label';
             label.textContent = m.shortLabel;
@@ -743,6 +760,7 @@
     // Stock Period Calculations
     // ============================================
 
+    // Get cumulative stock available at a specific date
     function getStockAtDate(targetDate) {
         const target = new Date(targetDate);
         let stock = 0;
@@ -756,6 +774,7 @@
         return stock;
     }
 
+    // Get all pending orders sorted by planned date
     function getPendingOrdersSorted() {
         return existingOrders
             .filter(order => {
@@ -766,10 +785,15 @@
             .sort((a, b) => new Date(a.planned_shipping_date) - new Date(b.planned_shipping_date));
     }
 
+    // Calculate available stock at a date, considering orders planned before that date
+    // excludeOrderId: optionally exclude a specific order from the calculation
     function getAvailableStockAtDate(targetDate, excludeOrderId = null) {
         const target = new Date(targetDate);
+
+        // Get total incoming stock up to this date
         let available = getStockAtDate(targetDate);
 
+        // Subtract all pending orders with planned date <= target date
         existingOrders.forEach(order => {
             const status = order.status.toLowerCase();
             if (status === 'shipped' || status === 'delivered' || status === 'cancelled') return;
@@ -799,11 +823,14 @@
 
         const plannedDate = new Date(order.planned_shipping_date);
         const orderQty = order.quantity_kg;
+
+        // Get all pending orders sorted by planned date (first-come-first-served)
         const sortedOrders = getPendingOrdersSorted();
 
+        // Calculate how much stock is consumed by orders planned BEFORE this one
         let stockConsumedBefore = 0;
         for (const otherOrder of sortedOrders) {
-            if (otherOrder.id === order.id) break;
+            if (otherOrder.id === order.id) break; // Stop when we reach this order
 
             const otherPlanned = new Date(otherOrder.planned_shipping_date);
             if (otherPlanned <= plannedDate) {
@@ -811,6 +838,7 @@
             }
         }
 
+        // Check if order can be fulfilled on planned date
         const stockAtPlanned = getStockAtDate(order.planned_shipping_date);
         const availableForThisOrder = stockAtPlanned - stockConsumedBefore;
 
@@ -818,14 +846,20 @@
             return { canFulfillOnPlanned: true, earliestDate: order.planned_shipping_date, delayDays: 0 };
         }
 
+        // Not enough stock on planned date - find earliest date with enough stock
+        // We need to find when: stockAtDate - ordersBeforeThisDate >= orderQty
+
+        // Build a timeline of dates when stock changes (incoming deliveries)
         const stockDates = stockTimeline
             .map(e => new Date(e.date))
             .filter(d => d > plannedDate)
             .sort((a, b) => a - b);
 
+        // Check each stock delivery date
         for (const checkDate of stockDates) {
             const stockAtCheck = getStockAtDate(checkDate);
 
+            // Orders planned before this order AND before checkDate consume stock
             let consumed = 0;
             for (const otherOrder of sortedOrders) {
                 if (otherOrder.id === order.id) break;
@@ -839,6 +873,7 @@
             const availableAtCheck = stockAtCheck - consumed;
 
             if (availableAtCheck >= orderQty) {
+                // Find first weekday on or after this date
                 let earliestDate = new Date(checkDate);
                 while (earliestDate.getDay() === 0 || earliestDate.getDay() === 6) {
                     earliestDate.setDate(earliestDate.getDate() + 1);
@@ -854,10 +889,12 @@
             }
         }
 
+        // No stock delivery date found - check if there's ever enough stock
         const totalStock = stockTimeline.reduce((sum, e) => sum + e.incoming_kg, 0);
         const totalOrders = sortedOrders.reduce((sum, o) => sum + o.quantity_kg, 0);
 
         if (totalStock >= totalOrders) {
+            // There will eventually be enough, use last stock date
             const lastStockDate = stockTimeline
                 .map(e => new Date(e.date))
                 .sort((a, b) => b - a)[0];
@@ -879,6 +916,7 @@
         return { canFulfillOnPlanned: false, earliestDate: null, delayDays: null };
     }
 
+    // Legacy function for compatibility - builds period summary
     function buildStockPeriods() {
         const periods = [];
         const sortedTimeline = [...stockTimeline].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -895,6 +933,7 @@
                 stockPool += sortedTimeline[j].incoming_kg;
             }
 
+            // Now calculate committed orders correctly - only orders within this period
             let committedOrders = 0;
             existingOrders.forEach(order => {
                 const status = order.status.toLowerCase();
@@ -904,6 +943,7 @@
                     const plannedDate = new Date(order.planned_shipping_date);
                     const periodEndDate = periodEnd ? new Date(periodEnd) : null;
 
+                    // Count orders up to this period's end
                     if (!periodEndDate || plannedDate < periodEndDate) {
                         committedOrders += order.quantity_kg;
                     }
@@ -925,6 +965,7 @@
     function findFirstAvailableDate(requestedKg) {
         const minDate = getMinimumOrderDate();
 
+        // Get all committed orders (for a NEW order, all existing pending orders have priority)
         const totalCommitted = existingOrders
             .filter(order => {
                 const status = order.status.toLowerCase();
@@ -932,25 +973,32 @@
             })
             .reduce((sum, order) => sum + order.quantity_kg, 0);
 
+        // Build list of dates to check (stock delivery dates)
         const stockDates = stockTimeline
             .map(e => ({ date: new Date(e.date), incoming: e.incoming_kg }))
             .sort((a, b) => a.date - b.date);
 
+        // Check each stock delivery date
         let cumulativeStock = 0;
         for (const entry of stockDates) {
             cumulativeStock += entry.incoming;
 
+            // Skip dates before minimum order date
             if (entry.date < minDate) continue;
 
+            // Available = cumulative stock - all existing committed orders
             const available = cumulativeStock - totalCommitted;
 
             if (available >= requestedKg) {
+                // Found a date with enough stock
                 let deliveryDate = new Date(entry.date);
 
+                // Ensure it's at least minDate
                 if (deliveryDate < minDate) {
                     deliveryDate = new Date(minDate);
                 }
 
+                // Find first weekday
                 while (deliveryDate.getDay() === 0 || deliveryDate.getDay() === 6) {
                     deliveryDate.setDate(deliveryDate.getDate() + 1);
                 }
@@ -963,6 +1011,7 @@
             }
         }
 
+        // Check if immediate stock is available (before any future deliveries)
         const immediateStock = getStockAtDate(minDate);
         const immediateAvailable = immediateStock - totalCommitted;
 
@@ -979,6 +1028,7 @@
             };
         }
 
+        // No date found with enough stock
         const totalStock = stockTimeline.reduce((sum, e) => sum + e.incoming_kg, 0);
         const maxAvailable = Math.max(0, totalStock - totalCommitted);
 
@@ -1022,6 +1072,7 @@
         };
 
         try {
+            // Load stock levels
             const { data: stockData, error: stockError } = await db
                 .from('stock_levels')
                 .select('*')
@@ -1029,6 +1080,7 @@
 
             if (stockError) throw stockError;
 
+            // Load orders
             const { data: ordersData, error: ordersError } = await db
                 .from('orders')
                 .select('*')
@@ -1036,6 +1088,7 @@
 
             if (ordersError) throw ordersError;
 
+            // Transform data
             stockTimeline = stockData.map(row => ({
                 date: row.date,
                 incoming_kg: row.incoming_kg,
@@ -1054,6 +1107,7 @@
                 planned_shipping_date: row.planned_shipping_date
             }));
 
+            // Update display
             const immediateAvailable = getAvailableForImmediateDelivery();
             const nextIncoming = getNextIncomingDate();
             const nextIncomingText = nextIncoming ? ` (volgende levering: ${formatDateShort(nextIncoming)})` : '';
@@ -1061,9 +1115,11 @@
             els.stockVal.textContent = `${immediateAvailable} kg beschikbaar voor directe levering`;
             els.stockMeta.textContent = nextIncomingText;
 
+            // Render stock chart
             const forecastWithDelays = getMonthlyStockWithDelays();
             renderStockChart(forecastWithDelays);
 
+            // Orders table
             els.loader.style.display = "none";
             els.table.style.display = "table";
             els.tbody.innerHTML = "";

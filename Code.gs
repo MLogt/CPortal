@@ -127,16 +127,25 @@ function calculateOrderFulfillment(order, stockTimeline, allOrders) {
   }
 
   // Period has negative free stock - this order is part of the problem
-  // Find the first period where freeStock >= 0 (meaning ALL orders can be fulfilled by then)
-  // The order is already counted in committedOrders, so we just need freeStock >= 0
+  // Find the first period that:
+  // 1. Starts on or after the planned date (can't go back in time)
+  // 2. Has freeStock >= 0 (meaning all orders can be fulfilled by then)
 
   for (const period of stockPeriods) {
-    // If this period has freeStock >= 0, all orders up to this period can be fulfilled
-    if (period.freeStock >= 0) {
-      const periodStart = new Date(period.startDate);
+    const periodStart = new Date(period.startDate);
+    const periodEnd = period.endDate ? new Date(period.endDate) : null;
 
-      // Find first weekday in this period
-      let earliestDate = new Date(periodStart);
+    // Skip periods that end before the planned date (can't deliver in the past)
+    if (periodEnd && periodEnd <= plannedDate) {
+      continue;
+    }
+
+    // If this period has freeStock >= 0, the order can be fulfilled here
+    if (period.freeStock >= 0) {
+      // Earliest date is the later of: period start or planned date
+      let earliestDate = new Date(Math.max(periodStart.getTime(), plannedDate.getTime()));
+
+      // Find first weekday
       while (earliestDate.getDay() === 0 || earliestDate.getDay() === 6) {
         earliestDate.setDate(earliestDate.getDate() + 1);
       }
@@ -151,7 +160,7 @@ function calculateOrderFulfillment(order, stockTimeline, allOrders) {
     }
   }
 
-  // Cannot fulfill at all - all periods have negative free stock
+  // Cannot fulfill at all - no future periods have positive free stock
   return {
     canFulfillOnPlanned: false,
     earliestDate: null,

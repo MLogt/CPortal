@@ -50,8 +50,8 @@
     .status-cancelled { background: #fee2e2; color: #b91c1c; }
     .status-default { background: #f3f4f6; color: #374151; }
 
-    /* --- Inventory Card --- */
-    .inventory-card {
+    /* --- Stock Timeline Card --- */
+    .stock-card {
       display: inline-block;
       padding: 12px 16px;
       border-radius: 10px;
@@ -59,8 +59,8 @@
       border: 1px solid #bfdbfe;
       margin-bottom: 16px;
     }
-    .inventory-val { font-weight: 700; font-size: 20px; color: #1e3a8a; }
-    
+    .stock-val { font-weight: 700; font-size: 20px; color: #1e3a8a; }
+
     /* --- Tables --- */
     .table-wrapper { width: 100%; overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
     table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
@@ -76,41 +76,100 @@
     .field { margin-bottom: 16px; }
     input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px; box-sizing: border-box; }
     .input-error { border-color: #b91c1c !important; background-color: #fef2f2; }
-    
-    button[type="submit"] {
+
+    button[type="submit"], .btn-primary {
       background: var(--primary); color: #fff; border: none; padding: 10px 20px; border-radius: 999px;
       font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; width: 100%;
     }
-    button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
-    
+    button[type="submit"]:disabled, .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: #fff; color: var(--primary); border: 1px solid var(--border); padding: 10px 20px; border-radius: 999px;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; width: 100%;
+    }
+
     .two-columns { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 24px; }
     @media (min-width: 768px) { .two-columns { grid-template-columns: 3fr 2fr; } }
-    
+
     .card { border-radius: 8px; border: 1px solid var(--border); padding: 16px; background: #f9fafb; font-size: 14px; }
     .message { margin-top: 12px; font-size: 14px; padding: 10px; border-radius: 6px; display: none; }
     .message.error { background: #fee2e2; color: #b91c1c; display: block; }
     .message.success { background: #dcfce7; color: #166534; display: block; }
+
+    /* --- Availability Highlight Box --- */
+    .availability-box {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      border: 2px solid #10b981;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .availability-box.show { display: block; }
+    .availability-box.error {
+      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+      border-color: #ef4444;
+    }
+    .availability-date {
+      font-size: 18px;
+      font-weight: 700;
+      color: #047857;
+    }
+    .availability-box.error .availability-date { color: #b91c1c; }
+    .availability-info {
+      font-size: 13px;
+      color: #065f46;
+      margin-top: 4px;
+    }
+    .availability-box.error .availability-info { color: #991b1b; }
+
+    /* --- Confirmation Modal --- */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+    .modal h3 { margin-bottom: 16px; }
+    .modal-content { margin-bottom: 20px; font-size: 15px; line-height: 1.6; }
+    .modal-actions { display: flex; gap: 12px; }
+    .modal-actions button { flex: 1; }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <h1>HDPro Ordering Portal</h1>
-      <p class="meta">Stock level indicates direct availability. Future availability is calculated based on your requested shipping date.</p>
+      <p class="meta">Enter quantity to see earliest available delivery date. Stock is automatically calculated.</p>
     </header>
 
     <div class="two-columns">
       <div>
-        <div class="inventory-card">
-          <div id="inventory-display" class="inventory-val">Loading...</div>
-          <div id="inventory-meta" class="meta small" style="margin-bottom:0; margin-top:4px;">Checking stock levels...</div>
+        <div class="stock-card">
+          <div id="stock-display" class="stock-val">Loading...</div>
+          <div id="stock-meta" class="meta small" style="margin-bottom:0; margin-top:4px;">Checking stock levels...</div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
             <h2>Recent Orders</h2>
             <button id="refresh-btn" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:13px; text-decoration:underline;">Refresh Dashboard</button>
         </div>
-        
+
         <div id="orders-loading" class="meta">Loading orders...</div>
         <div class="table-wrapper">
           <table id="orders-table" style="display:none;">
@@ -157,27 +216,36 @@
             <input id="customer_name" name="customer_name" type="text" placeholder="e.g. Klant BV" required />
           </div>
 
+          <!-- Quantity BEFORE date -->
           <div class="field">
-            <label for="planned_shipping_date">Planned shipping date</label>
+            <label for="quantity_kg">Quantity (kg)</label>
+            <input id="quantity_kg" name="quantity_kg" type="number" min="20" step="20" placeholder="e.g. 500" required />
+            <div id="quantity-hint" class="meta small" style="margin-top:4px;">Enter quantity to check availability</div>
+            <div id="quantity-error" class="meta-error" style="display:none;"></div>
+          </div>
+
+          <!-- Availability highlight box -->
+          <div id="availability-box" class="availability-box">
+            <div id="availability-date" class="availability-date"></div>
+            <div id="availability-info" class="availability-info"></div>
+          </div>
+
+          <!-- Date selection (after quantity) -->
+          <div class="field" id="date-field" style="display:none;">
+            <label for="planned_shipping_date">Delivery date</label>
             <input id="planned_shipping_date" name="planned_shipping_date" type="date" required />
             <div id="planned-hint" class="meta small" style="margin-top:4px;"></div>
             <div id="planned-error" class="meta-error" style="display:none;"></div>
           </div>
 
-          <div class="field">
-            <label for="quantity_kg">Quantity (kg)</label>
-            <input id="quantity_kg" name="quantity_kg" type="number" min="20" step="20" required />
-            <div id="quantity-error" class="meta-error" style="display:none;"></div>
-          </div>
-
-          <div class="field" style="background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e3a8a; border: 1px solid #bfdbfe;">
-             <div id="quantity-summary">Enter date and quantity.</div>
+          <div class="field" id="price-field" style="display:none; background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e3a8a; border: 1px solid #bfdbfe;">
+             <div id="quantity-summary"></div>
              <div id="price-preview" style="margin-top:4px; font-weight:600;"></div>
           </div>
 
-          <div class="field" style="font-size: 13px;">
+          <div class="field" id="confirm-field" style="display:none; font-size: 13px;">
             <label style="font-weight: normal; display: flex; align-items: flex-start; gap: 8px;">
-              <input type="checkbox" required style="width: auto; margin-top: 3px;">
+              <input type="checkbox" id="confirm-checkbox" style="width: auto; margin-top: 3px;">
               <span>I confirm this binding purchase commitment.</span>
             </label>
           </div>
@@ -189,11 +257,23 @@
     </div>
   </div>
 
+  <!-- Confirmation Modal -->
+  <div id="confirm-modal" class="modal-overlay">
+    <div class="modal">
+      <h3>Confirm Order</h3>
+      <div id="modal-content" class="modal-content"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="modal-cancel">Cancel</button>
+        <button type="button" class="btn-primary" id="modal-confirm">Confirm Order</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     "use strict";
 
     const CONFIG = {
-        apiBase: "https://script.google.com/macros/s/AKfycbxTvFCnT0dWx3jfGbYq0vxwU7r6ygVeq5rCHGgfWLMDCMKubrm7nximDNM77Ybw4IW5/exec", 
+        apiBase: "https://script.google.com/macros/s/AKfycbwWJr86RrMHrJHKUV93IDJq9FrX2_nKBbz2aOGrPDLLzhjI3Hdyzleu6Uv3NG-q9UnE/exec",
         customerId: 1,
         bagWeight: 20,
         bagsPerPallet: 24,
@@ -208,38 +288,81 @@
     ];
 
     // App State
-    let currentBaseInventory = 0;
-    let inboundStock = [];
+    let stockTimeline = [];
     let existingOrders = [];
+    let calculatedAvailability = null;
+    let debounceTimer = null;
 
     // --- Business Logic ---
     function getPrice(kg) {
         return PRICING.find(p => kg <= p.limit) || PRICING[PRICING.length - 1];
     }
 
-    function calculateAvailableOnDate(targetDateStr) {
-        if(!targetDateStr) return currentBaseInventory;
-        const targetDate = new Date(targetDateStr);
-        let available = Number(currentBaseInventory);
+    function formatDate(dateStr) {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString("en-GB", { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
 
-        inboundStock.forEach(item => {
-            if (new Date(item.date) <= targetDate) available += Number(item.kg);
+    function formatDateShort(dateStr) {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString("en-GB");
+    }
+
+    // Calculate minimum order date (today + 5 business days)
+    function getMinimumOrderDate() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let date = new Date(today);
+        let businessDays = 0;
+        while (businessDays < CONFIG.leadTimeDays) {
+            date.setDate(date.getDate() + 1);
+            if (date.getDay() !== 0 && date.getDay() !== 6) businessDays++;
+        }
+        return date;
+    }
+
+    // Calculate available stock on a specific date (client-side)
+    function calculateAvailableOnDate(targetDateStr) {
+        const targetDate = new Date(targetDateStr);
+        let available = 0;
+
+        // Add all incoming stock up to and including target date
+        stockTimeline.forEach(entry => {
+            if (new Date(entry.date) <= targetDate) {
+                available += entry.incoming_kg;
+            }
         });
 
+        // Subtract all pending orders up to and including target date
         existingOrders.forEach(order => {
             if (order.status !== 'shipped' && order.status !== 'cancelled') {
-                if (new Date(order.planned_shipping_date) <= targetDate) {
-                    available -= Number(order.quantity_kg);
+                if (order.planned_shipping_date && new Date(order.planned_shipping_date) <= targetDate) {
+                    available -= order.quantity_kg;
                 }
             }
         });
+
         return available;
+    }
+
+    // Calculate total available stock (for display)
+    function getTotalAvailableStock() {
+        let total = 0;
+        stockTimeline.forEach(entry => {
+            total += entry.incoming_kg;
+        });
+        existingOrders.forEach(order => {
+            if (order.status !== 'shipped' && order.status !== 'cancelled') {
+                total -= order.quantity_kg;
+            }
+        });
+        return total;
     }
 
     async function loadDashboard() {
         const els = {
-            invVal: document.getElementById("inventory-display"),
-            invMeta: document.getElementById("inventory-meta"),
+            stockVal: document.getElementById("stock-display"),
+            stockMeta: document.getElementById("stock-meta"),
             loader: document.getElementById("orders-loading"),
             table: document.getElementById("orders-table"),
             tbody: document.getElementById("orders-tbody")
@@ -250,17 +373,17 @@
             const data = await res.json();
             if (!data.success) throw new Error("API Error");
 
-            currentBaseInventory = data.inventory.available_kg;
-            inboundStock = data.inbound || [];
+            stockTimeline = data.stock_timeline || [];
             existingOrders = data.orders || [];
 
-            els.invVal.textContent = `${currentBaseInventory} kg direct stock`;
-            els.invMeta.textContent = `Updates based on selected shipping date.`;
+            const totalAvailable = getTotalAvailableStock();
+            els.stockVal.textContent = `${totalAvailable} kg total available`;
+            els.stockMeta.textContent = `Based on incoming stock and pending orders`;
 
             els.loader.style.display = "none";
             els.table.style.display = "table";
             els.tbody.innerHTML = "";
-            
+
             existingOrders.forEach(order => {
                 const tr = document.createElement("tr");
                 const d = new Date(order.timestamp);
@@ -276,12 +399,68 @@
                 els.tbody.appendChild(tr);
             });
         } catch (err) {
-            els.invVal.textContent = "Error";
-            els.invMeta.textContent = "Could not connect to server.";
+            els.stockVal.textContent = "Error";
+            els.stockMeta.textContent = "Could not connect to server.";
         }
     }
 
-    function setupForm() {
+    async function checkAvailability(qty) {
+        const availBox = document.getElementById("availability-box");
+        const availDate = document.getElementById("availability-date");
+        const availInfo = document.getElementById("availability-info");
+        const dateField = document.getElementById("date-field");
+        const dateInput = document.getElementById("planned_shipping_date");
+        const plannedHint = document.getElementById("planned-hint");
+
+        availBox.classList.remove("show", "error");
+        dateField.style.display = "none";
+
+        if (!qty || qty < 20) {
+            calculatedAvailability = null;
+            return;
+        }
+
+        // Show loading state
+        availBox.classList.add("show");
+        availDate.textContent = "Checking availability...";
+        availInfo.textContent = "";
+
+        try {
+            const res = await fetch(`${CONFIG.apiBase}?action=check_availability&quantity_kg=${qty}`);
+            const data = await res.json();
+
+            if (!data.success) throw new Error(data.error);
+
+            calculatedAvailability = data;
+
+            if (data.first_available_date) {
+                availBox.classList.remove("error");
+                availDate.textContent = `Earliest delivery: ${formatDate(data.first_available_date)}`;
+                availInfo.textContent = `${data.available_kg_on_date}kg available on this date`;
+
+                // Show date field and set defaults
+                dateField.style.display = "block";
+                dateInput.value = data.first_available_date;
+                dateInput.min = data.first_available_date;
+                plannedHint.textContent = `You can select ${formatDateShort(data.first_available_date)} or any later weekday with stock`;
+
+                // Trigger validation
+                validateForm();
+            } else {
+                availBox.classList.add("error");
+                availDate.textContent = "Insufficient stock";
+                availInfo.textContent = data.message || `Maximum available: ${data.available_kg_on_date}kg`;
+                calculatedAvailability = null;
+            }
+        } catch (err) {
+            availBox.classList.add("error");
+            availDate.textContent = "Error checking availability";
+            availInfo.textContent = err.message;
+            calculatedAvailability = null;
+        }
+    }
+
+    function validateForm() {
         const els = {
             qty: document.getElementById("quantity_kg"),
             date: document.getElementById("planned_shipping_date"),
@@ -289,64 +468,164 @@
             summary: document.getElementById("quantity-summary"),
             pricePrev: document.getElementById("price-preview"),
             qtyErr: document.getElementById("quantity-error"),
-            plannedHint: document.getElementById("planned-hint"),
+            plannedErr: document.getElementById("planned-error"),
+            priceField: document.getElementById("price-field"),
+            confirmField: document.getElementById("confirm-field"),
+            confirmCheckbox: document.getElementById("confirm-checkbox")
+        };
+
+        els.qtyErr.style.display = "none";
+        els.plannedErr.style.display = "none";
+        els.qty.classList.remove("input-error");
+        els.date.classList.remove("input-error");
+        els.priceField.style.display = "none";
+        els.confirmField.style.display = "none";
+        els.submit.disabled = true;
+
+        const qty = Number(els.qty.value);
+        const dateVal = els.date.value;
+
+        if (!qty || !dateVal || !calculatedAvailability) return false;
+
+        // Validate quantity is multiple of 20
+        if (qty % 20 !== 0) {
+            els.qtyErr.textContent = "Must be multiple of 20kg";
+            els.qtyErr.style.display = "block";
+            els.qty.classList.add("input-error");
+            return false;
+        }
+
+        // Validate date is not before minimum
+        const minDate = getMinimumOrderDate();
+        const selectedDate = new Date(dateVal);
+        if (selectedDate < minDate) {
+            els.plannedErr.textContent = `Date must be ${formatDateShort(minDate.toISOString().split('T')[0])} or later`;
+            els.plannedErr.style.display = "block";
+            els.date.classList.add("input-error");
+            return false;
+        }
+
+        // Validate date is a weekday
+        if (selectedDate.getDay() === 0 || selectedDate.getDay() === 6) {
+            els.plannedErr.textContent = "Date must be a weekday";
+            els.plannedErr.style.display = "block";
+            els.date.classList.add("input-error");
+            return false;
+        }
+
+        // Validate stock on selected date
+        const availableOnDate = calculateAvailableOnDate(dateVal);
+        if (availableOnDate < qty) {
+            els.plannedErr.textContent = `Insufficient stock on this date. Available: ${availableOnDate}kg`;
+            els.plannedErr.style.display = "block";
+            els.date.classList.add("input-error");
+            return false;
+        }
+
+        // Show price and confirmation
+        const price = getPrice(qty).cust;
+        els.summary.textContent = `Order: ${qty}kg for delivery on ${formatDateShort(dateVal)}`;
+        els.pricePrev.textContent = `Price: ${price.toFixed(2)}/kg (Total ${(price * qty).toFixed(2)})`;
+        els.priceField.style.display = "block";
+        els.confirmField.style.display = "block";
+
+        // Enable submit only if checkbox is checked
+        els.submit.disabled = !els.confirmCheckbox.checked;
+
+        return els.confirmCheckbox.checked;
+    }
+
+    function setupForm() {
+        const els = {
+            qty: document.getElementById("quantity_kg"),
+            date: document.getElementById("planned_shipping_date"),
+            submit: document.getElementById("submit-btn"),
             orderedSelect: document.getElementById("ordered_by_select"),
             orderedOther: document.getElementById("ordered_by_other_field"),
             msg: document.getElementById("form-message"),
-            form: document.getElementById("order-form")
+            form: document.getElementById("order-form"),
+            confirmCheckbox: document.getElementById("confirm-checkbox"),
+            modal: document.getElementById("confirm-modal"),
+            modalContent: document.getElementById("modal-content"),
+            modalCancel: document.getElementById("modal-cancel"),
+            modalConfirm: document.getElementById("modal-confirm")
         };
 
-        // Date constraints
-        const today = new Date();
-        let minDate = new Date(today);
-        let added = 0;
-        while(added < CONFIG.leadTimeDays) {
-            minDate.setDate(minDate.getDate() + 1);
-            if(minDate.getDay() !== 0 && minDate.getDay() !== 6) added++;
-        }
-        els.date.min = minDate.toISOString().split('T')[0];
-        els.plannedHint.textContent = `Earliest possible: ${minDate.toLocaleDateString("en-GB")}`;
-
-        const validate = () => {
+        // Quantity change triggers availability check (debounced)
+        els.qty.addEventListener("input", () => {
+            clearTimeout(debounceTimer);
             const qty = Number(els.qty.value);
-            const dateVal = els.date.value;
-            els.qtyErr.style.display = "none";
-            els.qty.classList.remove("input-error");
-            
-            if (!qty || !dateVal) return false;
 
-            const available = calculateAvailableOnDate(dateVal);
-            
-            if (qty % 20 !== 0) {
-                els.qtyErr.textContent = "Must be multiple of 20kg";
-                els.qtyErr.style.display = "block";
-                els.qty.classList.add("input-error");
-                return false;
+            // Immediate validation for multiples of 20
+            const qtyErr = document.getElementById("quantity-error");
+            const qtyHint = document.getElementById("quantity-hint");
+            if (qty && qty % 20 !== 0) {
+                qtyErr.textContent = "Must be multiple of 20kg";
+                qtyErr.style.display = "block";
+                qtyHint.style.display = "none";
+            } else {
+                qtyErr.style.display = "none";
+                qtyHint.style.display = qty ? "none" : "block";
             }
 
-            if (qty > available) {
-                els.qtyErr.textContent = `Insufficient stock for this date. Available: ${available}kg`;
-                els.qtyErr.style.display = "block";
-                els.qty.classList.add("input-error");
-                return false;
-            }
+            debounceTimer = setTimeout(() => {
+                if (qty >= 20 && qty % 20 === 0) {
+                    checkAvailability(qty);
+                } else {
+                    document.getElementById("availability-box").classList.remove("show");
+                    document.getElementById("date-field").style.display = "none";
+                    document.getElementById("price-field").style.display = "none";
+                    document.getElementById("confirm-field").style.display = "none";
+                    els.submit.disabled = true;
+                    calculatedAvailability = null;
+                }
+            }, 500);
+        });
 
-            const price = getPrice(qty).cust;
-            els.summary.textContent = `Availability on ${new Date(dateVal).toLocaleDateString("en-GB")}: ${available}kg.`;
-            els.pricePrev.textContent = `Price: € ${price.toFixed(2)}/kg (Total € ${(price * qty).toFixed(2)})`;
-            return true;
-        };
+        // Date change triggers revalidation
+        els.date.addEventListener("change", () => {
+            validateForm();
+        });
 
-        [els.qty, els.date].forEach(el => el.addEventListener("input", () => {
-            els.submit.disabled = !validate();
-        }));
+        // Checkbox triggers validation
+        els.confirmCheckbox.addEventListener("change", () => {
+            validateForm();
+        });
 
         els.orderedSelect.addEventListener("change", () => {
             els.orderedOther.style.display = els.orderedSelect.value === "Other" ? "block" : "none";
         });
 
-        els.form.addEventListener("submit", async (e) => {
+        // Form submission shows confirmation modal
+        els.form.addEventListener("submit", (e) => {
             e.preventDefault();
+
+            const qty = Number(els.qty.value);
+            const dateVal = els.date.value;
+            const price = getPrice(qty).cust;
+            const orderedBy = els.orderedSelect.value === "Other"
+                ? document.getElementById("ordered_by_other").value
+                : els.orderedSelect.value;
+            const customerName = document.getElementById("customer_name").value;
+
+            els.modalContent.innerHTML = `
+                <p><strong>Order ${qty}kg</strong> for delivery on <strong>${formatDate(dateVal)}</strong></p>
+                <p>Customer: ${customerName}</p>
+                <p>Ordered by: ${orderedBy}</p>
+                <p>Total price: <strong>${(price * qty).toFixed(2)}</strong> (${price.toFixed(2)}/kg)</p>
+            `;
+
+            els.modal.classList.add("show");
+        });
+
+        // Modal cancel
+        els.modalCancel.addEventListener("click", () => {
+            els.modal.classList.remove("show");
+        });
+
+        // Modal confirm - actually submit the order
+        els.modalConfirm.addEventListener("click", async () => {
+            els.modal.classList.remove("show");
             els.msg.style.display = "none";
             els.submit.disabled = true;
             els.submit.textContent = "Submitting...";
@@ -356,7 +635,7 @@
                 ordered_by: els.orderedSelect.value === "Other" ? document.getElementById("ordered_by_other").value : els.orderedSelect.value,
                 customer_name: document.getElementById("customer_name").value,
                 quantity_kg: Number(els.qty.value),
-                comment: document.getElementById("comment") ? document.getElementById("comment").value : "",
+                comment: "",
                 planned_shipping_date: els.date.value
             };
 
@@ -366,12 +645,21 @@
                     body: new URLSearchParams({ payload: JSON.stringify(payload) })
                 });
                 const data = await res.json();
-                if(!data.success) throw new Error(data.error);
+                if (!data.success) throw new Error(data.error);
 
                 els.msg.className = "message success";
-                els.msg.textContent = "Order placed successfully!";
+                els.msg.textContent = `Order placed successfully! Delivery scheduled for ${formatDateShort(data.order.planned_shipping_date)}`;
                 els.msg.style.display = "block";
                 els.form.reset();
+
+                // Reset form state
+                document.getElementById("availability-box").classList.remove("show");
+                document.getElementById("date-field").style.display = "none";
+                document.getElementById("price-field").style.display = "none";
+                document.getElementById("confirm-field").style.display = "none";
+                document.getElementById("quantity-hint").style.display = "block";
+                calculatedAvailability = null;
+
                 loadDashboard();
             } catch (err) {
                 els.msg.className = "message error";
@@ -380,6 +668,13 @@
             } finally {
                 els.submit.disabled = false;
                 els.submit.textContent = "Place order";
+            }
+        });
+
+        // Close modal on overlay click
+        els.modal.addEventListener("click", (e) => {
+            if (e.target === els.modal) {
+                els.modal.classList.remove("show");
             }
         });
     }

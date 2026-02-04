@@ -345,7 +345,15 @@
         return available;
     }
 
-    // Calculate total available stock (for display)
+    // Calculate stock available TODAY (for display)
+    function getCurrentAvailableStock() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().split('T')[0];
+        return calculateAvailableOnDate(todayStr);
+    }
+
+    // Calculate total future available stock
     function getTotalAvailableStock() {
         let total = 0;
         stockTimeline.forEach(entry => {
@@ -376,9 +384,10 @@
             stockTimeline = data.stock_timeline || [];
             existingOrders = data.orders || [];
 
-            const totalAvailable = getTotalAvailableStock();
-            els.stockVal.textContent = `${totalAvailable} kg total available`;
-            els.stockMeta.textContent = `Based on incoming stock and pending orders`;
+            const currentAvailable = getCurrentAvailableStock();
+            const totalFuture = getTotalAvailableStock();
+            els.stockVal.textContent = `${currentAvailable} kg available now`;
+            els.stockMeta.textContent = `Total after all deliveries: ${totalFuture} kg`;
 
             els.loader.style.display = "none";
             els.table.style.display = "table";

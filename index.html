@@ -48,18 +48,58 @@
     .status-shipped { background: #dbeafe; color: #1d4ed8; }
     .status-ready\ for\ pickup { background: #e0f2fe; color: #0369a1; }
     .status-cancelled { background: #fee2e2; color: #b91c1c; }
+    .status-invoice-sent { background: #dbeafe; color: #1d4ed8; }
+    .status-waiting-po { background: #fef3c7; color: #92400e; }
     .status-default { background: #f3f4f6; color: #374151; }
 
     /* --- Stock Timeline Card --- */
     .stock-card {
-      display: inline-block;
-      padding: 12px 16px;
+      padding: 16px;
       border-radius: 10px;
       background: #eff6ff;
       border: 1px solid #bfdbfe;
       margin-bottom: 16px;
     }
     .stock-val { font-weight: 700; font-size: 20px; color: #1e3a8a; }
+    .stock-monthly { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .month-chip {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* --- Order Row Colors --- */
+    .order-shipped { background: #f3f4f6; color: #9ca3af; }
+    .order-shipped td { color: #9ca3af; }
+    .order-now { background: #dcfce7; }
+    .order-month-feb { background: #dbeafe; }
+    .order-month-mar { background: #fef3c7; }
+    .order-month-apr { background: #fce7f3; }
+    .order-month-may { background: #e0e7ff; }
+    .order-month-jun { background: #ccfbf1; }
+    .order-month-jul { background: #fee2e2; }
+    .order-month-aug { background: #fef9c3; }
+    .order-month-sep { background: #f3e8ff; }
+    .order-month-oct { background: #cffafe; }
+    .order-month-nov { background: #d1fae5; }
+    .order-month-dec { background: #ffe4e6; }
+    .order-month-jan { background: #e0f2fe; }
+
+    /* Month chip colors matching order rows */
+    .chip-now { background: #166534; color: white; }
+    .chip-feb { background: #1d4ed8; color: white; }
+    .chip-mar { background: #a16207; color: white; }
+    .chip-apr { background: #be185d; color: white; }
+    .chip-may { background: #4338ca; color: white; }
+    .chip-jun { background: #0d9488; color: white; }
+    .chip-jul { background: #dc2626; color: white; }
+    .chip-aug { background: #ca8a04; color: white; }
+    .chip-sep { background: #7c3aed; color: white; }
+    .chip-oct { background: #0891b2; color: white; }
+    .chip-nov { background: #059669; color: white; }
+    .chip-dec { background: #e11d48; color: white; }
+    .chip-jan { background: #0284c7; color: white; }
 
     /* --- Tables --- */
     .table-wrapper { width: 100%; overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
@@ -163,6 +203,7 @@
         <div class="stock-card">
           <div id="stock-display" class="stock-val">Loading...</div>
           <div id="stock-meta" class="meta small" style="margin-bottom:0; margin-top:4px;">Checking stock levels...</div>
+          <div id="stock-monthly" class="stock-monthly"></div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
@@ -345,6 +386,9 @@
         return available;
     }
 
+    const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
     // Calculate stock available TODAY (for display)
     function getCurrentAvailableStock() {
         const today = new Date();
@@ -367,10 +411,69 @@
         return total;
     }
 
+    // Calculate monthly stock availability for the next 12 months
+    function getMonthlyStockForecast() {
+        const today = new Date();
+        const forecast = [];
+
+        for (let i = 0; i < 12; i++) {
+            const month = new Date(today.getFullYear(), today.getMonth() + i + 1, 0); // Last day of month
+            const monthStart = new Date(today.getFullYear(), today.getMonth() + i, 1);
+            const monthStr = month.toISOString().split('T')[0];
+            const available = calculateAvailableOnDate(monthStr);
+
+            // Only show months with positive or notable stock changes
+            forecast.push({
+                month: MONTH_NAMES[month.getMonth()],
+                label: `${MONTH_LABELS[month.getMonth()]} ${month.getFullYear()}`,
+                available: available,
+                year: month.getFullYear()
+            });
+        }
+
+        return forecast;
+    }
+
+    // Check if an order can be fulfilled with current stock
+    function canOrderBeDeliveredNow(order) {
+        if (order.status === 'shipped' || order.status === 'cancelled') return false;
+        const currentStock = getCurrentAvailableStock();
+        return currentStock >= order.quantity_kg;
+    }
+
+    // Get month class for an order
+    function getOrderMonthClass(order) {
+        if (order.status === 'shipped' || order.status === 'cancelled' || order.status === 'invoice sent') {
+            return 'order-shipped';
+        }
+
+        if (!order.planned_shipping_date) return '';
+
+        const plannedDate = new Date(order.planned_shipping_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Calculate if stock is available for this order on its planned date
+        const availableOnDate = calculateAvailableOnDate(order.planned_shipping_date);
+
+        // Check if it can be delivered now (within current month with current stock)
+        const currentStock = getCurrentAvailableStock();
+        const isCurrentMonth = plannedDate.getMonth() === today.getMonth() && plannedDate.getFullYear() === today.getFullYear();
+
+        if (isCurrentMonth && currentStock >= order.quantity_kg) {
+            return 'order-now';
+        }
+
+        // Return month-based class
+        const monthName = MONTH_NAMES[plannedDate.getMonth()];
+        return `order-month-${monthName}`;
+    }
+
     async function loadDashboard() {
         const els = {
             stockVal: document.getElementById("stock-display"),
             stockMeta: document.getElementById("stock-meta"),
+            stockMonthly: document.getElementById("stock-monthly"),
             loader: document.getElementById("orders-loading"),
             table: document.getElementById("orders-table"),
             tbody: document.getElementById("orders-tbody")
@@ -385,9 +488,26 @@
             existingOrders = data.orders || [];
 
             const currentAvailable = getCurrentAvailableStock();
-            const totalFuture = getTotalAvailableStock();
-            els.stockVal.textContent = `${currentAvailable} kg available now`;
-            els.stockMeta.textContent = `Total after all deliveries: ${totalFuture} kg`;
+            els.stockVal.textContent = `${currentAvailable} kg beschikbaar voor directe levering`;
+            els.stockMeta.textContent = `Voorraad per maand (na orders):`;
+
+            // Show monthly forecast
+            const forecast = getMonthlyStockForecast();
+            els.stockMonthly.innerHTML = '';
+
+            // Add "Now" chip
+            const nowChip = document.createElement('span');
+            nowChip.className = 'month-chip chip-now';
+            nowChip.textContent = `Nu: ${currentAvailable} kg`;
+            els.stockMonthly.appendChild(nowChip);
+
+            // Add monthly chips (only show next 6 months with changes)
+            forecast.slice(0, 6).forEach(m => {
+                const chip = document.createElement('span');
+                chip.className = `month-chip chip-${m.month}`;
+                chip.textContent = `${m.label}: ${m.available} kg`;
+                els.stockMonthly.appendChild(chip);
+            });
 
             els.loader.style.display = "none";
             els.table.style.display = "table";
@@ -396,12 +516,17 @@
             existingOrders.forEach(order => {
                 const tr = document.createElement("tr");
                 const d = new Date(order.timestamp);
+
+                // Add color class based on delivery status
+                const rowClass = getOrderMonthClass(order);
+                if (rowClass) tr.className = rowClass;
+
                 tr.innerHTML = `
                     <td>${isNaN(d) ? order.timestamp : d.toLocaleDateString("en-GB")}</td>
                     <td>${order.ordered_by}</td>
                     <td>${order.customer}</td>
                     <td class="numeric">${order.quantity_kg}</td>
-                    <td><span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span></td>
+                    <td><span class="status-badge status-${order.status.toLowerCase().replace(/ /g, '-')}">${order.status}</span></td>
                     <td>${order.planned_shipping_date ? new Date(order.planned_shipping_date).toLocaleDateString("en-GB") : '-'}</td>
                     <td>${order.comment || ''}</td>
                 `;

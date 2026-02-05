@@ -5,6 +5,7 @@
   <title>HDPro Ordering Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     :root {
       --primary: #111827;
@@ -469,6 +470,28 @@
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ============================================
+    // Notification Configuration
+    // ============================================
+    const NOTIFY_CONFIG = {
+        // Ntfy.sh - simple push notifications (recommended)
+        ntfyTopic: 'hdpro6-orders-abczzz-666',
+        ntfyEnabled: true,
+
+        // EmailJS - email notifications (optional, requires setup)
+        emailjs: {
+            publicKey: 'YOUR_PUBLIC_KEY',
+            serviceId: 'YOUR_SERVICE_ID',
+            templateId: 'YOUR_TEMPLATE_ID',
+            notifyEmail: 'orders@example.com'
+        }
+    };
+
+    // Initialize EmailJS if configured
+    if (NOTIFY_CONFIG.emailjs.publicKey !== 'YOUR_PUBLIC_KEY') {
+        emailjs.init(NOTIFY_CONFIG.emailjs.publicKey);
+    }
+
+    // ============================================
     // App Configuration
     // ============================================
     const CONFIG = {
@@ -523,6 +546,100 @@
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    }
+
+    // Send push notification via ntfy.sh
+    async function sendNtfyNotification(orderData) {
+        if (!NOTIFY_CONFIG.ntfyEnabled || NOTIFY_CONFIG.ntfyTopic === 'hdpro-orders-CHANGE-THIS') {
+            console.log('Ntfy not configured - skipping push notification');
+            return { success: false, reason: 'not_configured' };
+        }
+
+        const customerTotal = (orderData.customer_unit_price * orderData.quantity_kg).toFixed(2);
+        const ceadTotal = (orderData.cead_unit_price * orderData.quantity_kg).toFixed(2);
+
+        const message = [
+            `📦 New Order #${orderData.id || 'N/A'}`,
+            ``,
+            `Customer: ${orderData.customer}`,
+            `Ordered by: ${orderData.ordered_by}`,
+            `Quantity: ${orderData.quantity_kg} kg`,
+            `Delivery: ${formatDate(orderData.planned_shipping_date)}`,
+            ``,
+            `💰 Customer: €${customerTotal} (€${orderData.customer_unit_price.toFixed(2)}/kg)`,
+            `💼 CEAD PO: €${ceadTotal} (€${orderData.cead_unit_price.toFixed(2)}/kg)`,
+            orderData.comment ? `\n📝 ${orderData.comment}` : ''
+        ].filter(Boolean).join('\n');
+
+        try {
+            const response = await fetch(`https://ntfy.sh/${NOTIFY_CONFIG.ntfyTopic}`, {
+                method: 'POST',
+                headers: {
+                    'Title': `HDPro Order: ${orderData.quantity_kg}kg - ${orderData.customer}`,
+                    'Tags': 'package,moneybag'
+                },
+                body: message
+            });
+
+            if (response.ok) {
+                console.log('Ntfy notification sent successfully');
+                return { success: true };
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Failed to send ntfy notification:', error);
+            return { success: false, error };
+        }
+    }
+
+    // Send order confirmation email (optional)
+    async function sendOrderConfirmationEmail(orderData) {
+        // Skip if EmailJS not configured
+        if (NOTIFY_CONFIG.emailjs.publicKey === 'YOUR_PUBLIC_KEY') {
+            console.log('EmailJS not configured - skipping email notification');
+            return { success: false, reason: 'not_configured' };
+        }
+
+        const templateParams = {
+            to_email: NOTIFY_CONFIG.emailjs.notifyEmail,
+            order_id: orderData.id || 'N/A',
+            customer_name: orderData.customer,
+            ordered_by: orderData.ordered_by,
+            quantity_kg: orderData.quantity_kg,
+            planned_date: formatDate(orderData.planned_shipping_date),
+            customer_price: `€${orderData.customer_unit_price.toFixed(2)}/kg`,
+            customer_total: `€${(orderData.customer_unit_price * orderData.quantity_kg).toFixed(2)}`,
+            cead_price: `€${orderData.cead_unit_price.toFixed(2)}/kg`,
+            cead_total: `€${(orderData.cead_unit_price * orderData.quantity_kg).toFixed(2)}`,
+            comment: orderData.comment || '-',
+            order_date: new Date().toLocaleDateString("en-GB", {
+                weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            })
+        };
+
+        try {
+            const response = await emailjs.send(
+                NOTIFY_CONFIG.emailjs.serviceId,
+                NOTIFY_CONFIG.emailjs.templateId,
+                templateParams
+            );
+            console.log('Order confirmation email sent:', response);
+            return { success: true, response };
+        } catch (error) {
+            console.error('Failed to send order confirmation email:', error);
+            return { success: false, error };
+        }
+    }
+
+    // Send all configured notifications
+    async function sendOrderNotifications(orderData) {
+        // Send ntfy push notification
+        sendNtfyNotification(orderData);
+
+        // Send email notification (if configured)
+        sendOrderConfirmationEmail(orderData);
     }
 
     // ============================================
@@ -1481,6 +1598,14 @@
                     .select();
 
                 if (error) throw error;
+
+                // Add the returned order ID to orderData for the email
+                if (data && data[0]) {
+                    orderData.id = data[0].id;
+                }
+
+                // Send notifications (don't wait, don't block on failure)
+                sendOrderNotifications(orderData);
 
                 els.msg.className = "message success";
                 els.msg.textContent = `Order placed successfully! Delivery scheduled for ${formatDateShort(orderData.planned_shipping_date)}`;

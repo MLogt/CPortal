@@ -113,6 +113,75 @@ const CONFIG = {
 };
 ```
 
+### Ntfy.sh Push Notifications (Recommended)
+
+Simple, free push notifications to your phone:
+
+1. **Install ntfy app** on your phone:
+   - Android: https://play.google.com/store/apps/details?id=io.heckel.ntfy
+   - iOS: https://apps.apple.com/app/ntfy/id1625396347
+
+2. **Choose a secret topic name** (acts like a password):
+   - Example: `hdpro-orders-abc123xyz`
+   - Make it random/unique so others can't subscribe
+
+3. **Subscribe in the app**:
+   - Open ntfy app → Add subscription
+   - Enter your topic name
+
+4. **Update configuration** in `index.html`:
+   ```javascript
+   const NOTIFY_CONFIG = {
+       ntfyTopic: 'hdpro-orders-abc123xyz',  // Your secret topic
+       ntfyEnabled: true,
+       // ...
+   };
+   ```
+
+5. **Test**: Place an order and you should get a push notification!
+
+### EmailJS Setup (Optional Email Notifications)
+
+1. **Create EmailJS account**: Go to https://www.emailjs.com/ and sign up (free tier: 200 emails/month)
+
+2. **Add Email Service**:
+   - Dashboard → Email Services → Add New Service
+   - Choose your email provider (Gmail, Outlook, etc.)
+   - Follow the connection steps
+
+3. **Create Email Template**:
+   - Dashboard → Email Templates → Create New Template
+   - Use these template variables:
+   ```
+   Subject: New HDPro Order - {{customer_name}} - {{quantity_kg}}kg
+
+   New order received!
+
+   Order Details:
+   - Order ID: {{order_id}}
+   - Customer: {{customer_name}}
+   - Ordered by: {{ordered_by}}
+   - Quantity: {{quantity_kg}} kg
+   - Planned delivery: {{planned_date}}
+   - Comment: {{comment}}
+
+   Pricing:
+   - Customer: {{customer_price}} (Total: {{customer_total}})
+   - CEAD (PO): {{cead_price}} (Total: {{cead_total}})
+
+   Order placed: {{order_date}}
+   ```
+
+4. **Update Configuration** in `index.html`:
+   ```javascript
+   const EMAILJS_CONFIG = {
+       publicKey: 'your_public_key',      // Account → API Keys
+       serviceId: 'service_xxxxx',        // Email Services → Service ID
+       templateId: 'template_xxxxx',      // Email Templates → Template ID
+       notifyEmail: 'orders@yourcompany.com'
+   };
+   ```
+
 ## Stock Calculation Logic
 
 ### Fulfillment Algorithm

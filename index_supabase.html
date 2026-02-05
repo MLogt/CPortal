@@ -518,7 +518,11 @@
     }
 
     function formatDateISO(date) {
-        return date.toISOString().split('T')[0];
+        // Use local date components to avoid timezone shifts
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     // ============================================
@@ -964,73 +968,105 @@
 
     function findFirstAvailableDate(requestedKg) {
         const minDate = getMinimumOrderDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        // Get all committed orders (for a NEW order, all existing pending orders have priority)
-        const totalCommitted = existingOrders
+        // First, calculate ACTUAL fulfillment dates for all existing orders
+        // This tells us when each order will really be fulfilled (accounting for delays)
+        const orderFulfillments = existingOrders
+            .filter(order => {
+                const status = order.status.toLowerCase();
+                return status !== 'shipped' && status !== 'delivered' && status !== 'cancelled';
+            })
+            .map(order => ({
+                order: order,
+                fulfillment: calculateOrderFulfillment(order)
+            }));
+
+        // Helper: calculate stock consumed by orders actually fulfilled by a given date
+        // excludeOrderId: optionally exclude one order from the count
+        function getConsumedByDate(targetDate, excludeOrderId = null) {
+            let consumed = 0;
+            orderFulfillments.forEach(({ order, fulfillment }) => {
+                if (excludeOrderId && order.id === excludeOrderId) return;
+                if (fulfillment.earliestDate) {
+                    const actualDate = new Date(fulfillment.earliestDate);
+                    if (actualDate <= targetDate) {
+                        consumed += order.quantity_kg;
+                    }
+                }
+            });
+            return consumed;
+        }
+
+        // Helper: check if placing new order at candidateDate would delay any existing order
+        function wouldDelayExistingOrders(candidateDate, newOrderQty) {
+            for (const { order, fulfillment } of orderFulfillments) {
+                if (!fulfillment.earliestDate) continue;
+
+                const existingFulfillmentDate = new Date(fulfillment.earliestDate);
+
+                // If new order is placed before or on existing order's fulfillment date,
+                // check if there's still enough stock for the existing order
+                if (candidateDate <= existingFulfillmentDate) {
+                    const stockAtExisting = getStockAtDate(existingFulfillmentDate);
+                    // Exclude current order from consumed count to avoid double-counting
+                    const consumedByOthers = getConsumedByDate(existingFulfillmentDate, order.id);
+                    const availableForThisOrder = stockAtExisting - consumedByOthers - newOrderQty;
+
+                    if (availableForThisOrder < order.quantity_kg) {
+                        return true; // Would delay this order
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Build list of candidate dates to check
+        // Start with minDate, then each stock delivery date
+        const candidateDates = [new Date(minDate)];
+        stockTimeline.forEach(entry => {
+            const d = new Date(entry.date);
+            if (d > minDate) {
+                candidateDates.push(d);
+            }
+        });
+        candidateDates.sort((a, b) => a - b);
+
+        // Check each candidate date
+        for (const candidateDate of candidateDates) {
+            const stockAtDate = getStockAtDate(candidateDate);
+            const consumedByDate = getConsumedByDate(candidateDate);
+            const available = stockAtDate - consumedByDate;
+
+            if (available >= requestedKg) {
+                // Check if this would delay any existing orders
+                if (!wouldDelayExistingOrders(candidateDate, requestedKg)) {
+                    let deliveryDate = new Date(candidateDate);
+
+                    // Find first weekday
+                    while (deliveryDate.getDay() === 0 || deliveryDate.getDay() === 6) {
+                        deliveryDate.setDate(deliveryDate.getDate() + 1);
+                    }
+
+                    return {
+                        date: formatDateISO(deliveryDate),
+                        available_kg: available,
+                        message: null
+                    };
+                }
+            }
+        }
+
+        // No date found
+        const totalStock = stockTimeline.reduce((sum, e) => sum + e.incoming_kg, 0);
+        const totalOrders = existingOrders
             .filter(order => {
                 const status = order.status.toLowerCase();
                 return status !== 'shipped' && status !== 'delivered' && status !== 'cancelled';
             })
             .reduce((sum, order) => sum + order.quantity_kg, 0);
-
-        // Build list of dates to check (stock delivery dates)
-        const stockDates = stockTimeline
-            .map(e => ({ date: new Date(e.date), incoming: e.incoming_kg }))
-            .sort((a, b) => a.date - b.date);
-
-        // Check each stock delivery date
-        let cumulativeStock = 0;
-        for (const entry of stockDates) {
-            cumulativeStock += entry.incoming;
-
-            // Skip dates before minimum order date
-            if (entry.date < minDate) continue;
-
-            // Available = cumulative stock - all existing committed orders
-            const available = cumulativeStock - totalCommitted;
-
-            if (available >= requestedKg) {
-                // Found a date with enough stock
-                let deliveryDate = new Date(entry.date);
-
-                // Ensure it's at least minDate
-                if (deliveryDate < minDate) {
-                    deliveryDate = new Date(minDate);
-                }
-
-                // Find first weekday
-                while (deliveryDate.getDay() === 0 || deliveryDate.getDay() === 6) {
-                    deliveryDate.setDate(deliveryDate.getDate() + 1);
-                }
-
-                return {
-                    date: formatDateISO(deliveryDate),
-                    available_kg: available,
-                    message: null
-                };
-            }
-        }
-
-        // Check if immediate stock is available (before any future deliveries)
-        const immediateStock = getStockAtDate(minDate);
-        const immediateAvailable = immediateStock - totalCommitted;
-
-        if (immediateAvailable >= requestedKg) {
-            let deliveryDate = new Date(minDate);
-            while (deliveryDate.getDay() === 0 || deliveryDate.getDay() === 6) {
-                deliveryDate.setDate(deliveryDate.getDate() + 1);
-            }
-
-            return {
-                date: formatDateISO(deliveryDate),
-                available_kg: immediateAvailable,
-                message: null
-            };
-        }
-
-        // No date found with enough stock
-        const totalStock = stockTimeline.reduce((sum, e) => sum + e.incoming_kg, 0);
-        const maxAvailable = Math.max(0, totalStock - totalCommitted);
+        const maxAvailable = Math.max(0, totalStock - totalOrders);
 
         return {
             date: null,
@@ -1334,6 +1370,9 @@
             els.orderedOther.style.display = els.orderedSelect.value === "Other" ? "block" : "none";
         });
 
+        // Store modal prices for use when confirming
+        let modalPrices = { customerTotal: 0, ceadTotal: 0, qty: 0, originalCeadPerKg: 0 };
+
         els.form.addEventListener("submit", (e) => {
             e.preventDefault();
 
@@ -1346,15 +1385,61 @@
             const customerName = document.getElementById("customer_name").value;
             const comment = document.getElementById("order_comment").value;
 
+            // Store original values
+            modalPrices = {
+                customerTotal: prices.customer * qty,
+                ceadTotal: prices.cead * qty,
+                qty: qty,
+                originalCeadPerKg: prices.cead
+            };
+
             els.modalContent.innerHTML = `
                 <p><strong>Order ${qty}kg</strong> for delivery on <strong>${formatDate(dateVal)}</strong></p>
                 <p>Customer: ${customerName}</p>
                 <p>Ordered by: ${orderedBy}</p>
                 ${comment ? `<p>Comment: ${comment}</p>` : ''}
                 <hr style="margin: 12px 0; border: none; border-top: 1px solid #e5e7eb;">
-                <p>Customer total: <strong>€${(prices.customer * qty).toFixed(2)}</strong> (€${prices.customer.toFixed(2)}/kg)</p>
-                <p>CEAD total (PO): <strong>€${(prices.cead * qty).toFixed(2)}</strong> (€${prices.cead.toFixed(2)}/kg)</p>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 14px; font-weight: 600; display: block; margin-bottom: 4px;">Customer total:</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>€</span>
+                        <input type="number" id="modal-customer-total" value="${(prices.customer * qty).toFixed(2)}"
+                               step="0.01" min="0" style="width: 120px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                        <span style="color: #6b7280; font-size: 13px;">(€<span id="modal-customer-per-kg">${prices.customer.toFixed(2)}</span>/kg)</span>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 14px; font-weight: 600; display: block; margin-bottom: 4px;">CEAD total (PO):</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span><strong>€<span id="modal-cead-total">${(prices.cead * qty).toFixed(2)}</span></strong></span>
+                        <span style="color: #6b7280; font-size: 13px;">(€<span id="modal-cead-per-kg">${prices.cead.toFixed(2)}</span>/kg)</span>
+                    </div>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 4px;">Auto-calculated based on customer price</p>
+                </div>
             `;
+
+            // Add event listener for customer total changes
+            const customerTotalInput = document.getElementById('modal-customer-total');
+            customerTotalInput.addEventListener('input', () => {
+                const newCustomerTotal = Number(customerTotalInput.value) || 0;
+                const newCustomerPerKg = newCustomerTotal / modalPrices.qty;
+
+                // Calculate new CEAD price using formula
+                const calculatedCeadPerKg = (newCustomerPerKg - 6.66) / 2 + 6.66;
+
+                // Use max of original CEAD price or calculated (CEAD doesn't lose money on discounts)
+                const finalCeadPerKg = Math.max(modalPrices.originalCeadPerKg, calculatedCeadPerKg);
+                const finalCeadTotal = finalCeadPerKg * modalPrices.qty;
+
+                // Update displays
+                document.getElementById('modal-customer-per-kg').textContent = newCustomerPerKg.toFixed(2);
+                document.getElementById('modal-cead-total').textContent = finalCeadTotal.toFixed(2);
+                document.getElementById('modal-cead-per-kg').textContent = finalCeadPerKg.toFixed(2);
+
+                // Store for submission
+                modalPrices.customerTotal = newCustomerTotal;
+                modalPrices.ceadTotal = finalCeadTotal;
+            });
 
             els.modal.classList.add("show");
         });
@@ -1370,7 +1455,10 @@
             els.submit.textContent = "Submitting...";
 
             const qty = Number(els.qty.value);
-            const prices = getPrice(qty);
+
+            // Use the (potentially edited) prices from the modal
+            const customerPerKg = modalPrices.customerTotal / modalPrices.qty;
+            const ceadPerKg = modalPrices.ceadTotal / modalPrices.qty;
 
             const orderData = {
                 customer_id: CONFIG.customerId,
@@ -1382,8 +1470,8 @@
                 comment: document.getElementById("order_comment").value || "",
                 planned_shipping_date: els.date.value,
                 status: 'reserved',
-                customer_unit_price: prices.customer,
-                cead_unit_price: prices.cead
+                customer_unit_price: Math.round(customerPerKg * 100) / 100,
+                cead_unit_price: Math.round(ceadPerKg * 100) / 100
             };
 
             try {
